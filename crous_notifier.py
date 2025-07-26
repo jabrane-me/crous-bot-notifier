@@ -128,7 +128,7 @@ def create_alert_email_body(title, added, removed, all_available):
         html += f'<h2 style="font-size: 20px; color: #dc3545;">Résidences qui ne sont plus listées ({len(removed)})</h2>'
         for res in removed: html += format_residence_html(res, color="#dc3545")
     
-    html += '<h2 style="font-size: 20px; border-top: 2px solid #eee; padding-top: 20px;">Liste complète des résidences disponibles</h2>'
+    html += f'<h2 style="font-size: 20px; border-top: 2px solid #eee; padding-top: 20px;">Liste complète des résidences disponibles ({len(all_available)})</h2>'
     if all_available:
         for res in all_available: html += format_residence_html(res)
     else:
@@ -144,7 +144,7 @@ def create_summary_email_body(title, added, removed, all_available):
     <div style="max-width: 700px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
         <h1 style="font-size: 24px; color: #00549F; border-bottom: 2px solid #eee; padding-bottom: 10px;">{title}</h1>"""
     
-    html += '<h2 style="font-size: 20px;">Liste complète des résidences disponibles en fin de journée</h2>'
+    html += f'<h2 style="font-size: 20px;">Liste complète des résidences disponibles en fin de journée ({len(all_available)})</h2>'
     if all_available:
         for res in all_available: html += format_residence_html(res)
     else:

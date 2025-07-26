@@ -1,0 +1,58 @@
+name: Check for Crous Housing Hourly
+
+on:
+  # Allows you to run this workflow manually from the Actions tab on GitHub
+  workflow_dispatch:
+
+  # Sets up the schedule to run automatically every hour
+  schedule:
+    - cron: '0 * * * *'
+
+jobs:
+  run-scraper:
+    # The job will run on a virtual machine with Ubuntu
+    runs-on: ubuntu-latest
+
+    # This grants the job permission to write files back to your repository
+    permissions:
+      contents: write
+
+    steps:
+      # Step 1: Checks out your repository's code onto the runner
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Sets up the Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      # Step 3: Installs the required Python libraries
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # Step 4: Executes your Python script
+      # It securely passes your secrets as environment variables
+      - name: Run the housing check script
+        env:
+          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+        run: python crous_notifier.py
+
+      # Step 5: Commits and pushes any changed files (the CSVs)
+      - name: Commit and push data files
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add -A
+          # Check if there are changes to commit to avoid errors
+          if git diff --staged --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update data files"
+            git push
+          fi

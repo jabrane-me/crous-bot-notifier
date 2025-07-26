@@ -213,9 +213,9 @@ if __name__ == "__main__":
                 removed_str = f"-{num_removed} retirée" if num_removed == 1 else f"-{num_removed} retirées"
                 subject = f"Alerte CROUS Bot: {added_str}, {removed_str}"
             elif num_added > 0:
-                subject = f"Alerte CROUS Bot: {num_added} nouvelle{'s' if num_added > 1 else ''} résidence{'s' if num_added > 1 else ''} disponible{'s' if num_added > 1 else ''} !"
+                subject = f"Alerte CROUS Bot (+): {num_added} nouvelle{'s' if num_added > 1 else ''} résidence{'s' if num_added > 1 else ''} disponible{'s' if num_added > 1 else ''} !"
             elif num_removed > 0:
-                subject = f"Alerte CROUS Bot: {num_removed} résidence{'s ne sont' if num_removed > 1 else ' n est'} plus disponible{'s' if num_removed > 1 else ''}"
+                subject = f"Alerte CROUS Bot (-): {num_removed} résidence{'s ne sont' if num_removed > 1 else ' n est'} plus disponible{'s' if num_removed > 1 else ''}"
 
             email_body = create_alert_email_body("Alerte Immédiate", added_list, removed_list, current_residences)
             send_email(subject, email_body)

@@ -1,7 +1,7 @@
 # Final Crous Notifier Script
 # Re-architected to handle multiple, independently configured monitoring targets.
-# Includes both immediate change notifications AND a comprehensive daily summary report,
-# with per-target email controls and data storage folders.
+# Includes both immediate change notifications AND a comprehensive daily summary report.
+# --- CONFIGURED FOR SENDGRID ---
 
 import requests
 from bs4 import BeautifulSoup
@@ -13,6 +13,8 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.header import Header
 import pprint
+import math
+import re
 
 # --- Global Configuration ---
 # PRODUCTION: Email configuration is read from environment variables
@@ -29,13 +31,34 @@ CET = timezone(timedelta(hours=1))
 # --- Core Scraping and File Functions ---
 
 def scrape_crous_page(url):
-    """Scrapes a Crous page and returns a list of dictionaries for each residence."""
+    """
+    Scrapes a Crous page and all its paginations, returning a single list of all residences.
+    """
+    all_residences = []
+    
     try:
+        # Fetch the original, unmodified URL first (this is page 1)
+        print(f"Fetching page 1 to determine total pages for: {url}")
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, 'html.parser')
+
+        total_pages = 1
+        results_h2 = soup.find('h2', class_='SearchResults-desktop')
+        if results_h2:
+            results_text = results_h2.get_text()
+            match = re.search(r'(\d+)\s+logement', results_text)
+            if match:
+                total_residences = int(match.group(1))
+                total_pages = math.ceil(total_residences / 24)
+                print(f"Found {total_residences} total residences across {int(total_pages)} page(s).")
+            else:
+                print("No residence count found in header. Assuming 1 page.")
+        else:
+            print("Could not find results header. Assuming 1 page.")
+
+        # Process the first page's content
         cards = soup.find_all('div', class_='fr-card')
-        data = []
         for card in cards:
             residence = {}
             title_element = card.find('h3', class_='fr-card__title')
@@ -46,10 +69,42 @@ def scrape_crous_page(url):
                 residence['address'] = card.find('p', class_='fr-card__desc').get_text(strip=True) if card.find('p', class_='fr-card__desc') else 'N/A'
                 details = card.find_all('p', class_='fr-card__detail')
                 residence['details'] = " | ".join([d.get_text(strip=True) for d in details])
-                data.append(residence)
-        return data
+                all_residences.append(residence)
+
+        # Loop through the rest of the pages if they exist
+        if total_pages > 1:
+            base_url = re.sub(r'[?&]page=\d+', '', url)
+            for page_num in range(2, int(total_pages) + 1):
+                page_url = base_url
+                if '?' in page_url:
+                    if not page_url.endswith('&'): page_url += '&'
+                    page_url += f'page={page_num}'
+                else:
+                    page_url += f'?page={page_num}'
+                
+                print(f"Fetching page {page_num}...")
+                response = requests.get(page_url, headers=HEADERS)
+                response.raise_for_status()
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                page_cards = soup.find_all('div', class_='fr-card')
+                for card in page_cards:
+                    residence = {}
+                    title_element = card.find('h3', class_='fr-card__title')
+                    if title_element and title_element.find('a'):
+                        residence['name'] = title_element.find('a').get_text(strip=True)
+                        residence['link'] = "https://trouverunlogement.lescrous.fr" + title_element.find('a')['href']
+                        residence['price'] = card.find('p', class_='fr-badge').get_text(strip=True) if card.find('p', class_='fr-badge') else 'N/A'
+                        residence['address'] = card.find('p', class_='fr-card__desc').get_text(strip=True) if card.find('p', class_='fr-card__desc') else 'N/A'
+                        details = card.find_all('p', class_='fr-card__detail')
+                        residence['details'] = " | ".join([d.get_text(strip=True) for d in details])
+                        all_residences.append(residence)
+        
+        print(f"Total residences scraped from all pages: {len(all_residences)}")
+        return all_residences
+
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching page {url}: {e}")
+        print(f"Error during scraping process for {url}: {e}")
         return None
 
 def read_csv_to_list(filepath):
@@ -91,12 +146,11 @@ def get_price_as_int(residence):
         print(f"Warning: Could not parse price '{price_str}', sorting to end")
         return 9999
 
-# --- NEW: Helper function for elegant pluralization ---
 def plural(n, singular, plural_form):
     """Returns the singular or plural form of a word based on the count n."""
     return singular if n == 1 else plural_form
 
-# --- Email and Reporting Functions (Unchanged) ---
+# --- Email and Reporting Functions ---
 
 def format_residence_html(residence, color="black"):
     """Formats a single residence into an HTML block."""
@@ -178,7 +232,7 @@ def send_email(subject, html_body):
     except Exception as e:
         print(f"Failed to send email: {e}")
 
-# --- NEW: Main processing function for a single target ---
+# --- Main processing function for a single target ---
 def process_target(target_config):
     """
     Runs the entire notification logic for a single configured target URL.
@@ -188,11 +242,9 @@ def process_target(target_config):
     send_alert = target_config["send_immediate_alert"]
     send_summary = target_config["send_daily_report"]
     
-    # Ensure the data directory for this target exists
     if folder != ".":
         os.makedirs(folder, exist_ok=True)
 
-    # Define file paths based on the target's folder
     available_csv = os.path.join(folder, 'available_residences.csv')
     removed_log_csv = os.path.join(folder, 'removed_residences.log.csv')
     activity_log_csv = os.path.join(folder, 'daily_activity_log.csv')
@@ -214,12 +266,10 @@ def process_target(target_config):
             added_list = [dict(h) for h in (current_set - previous_set)]
             removed_list = [dict(h) for h in (previous_set - current_set)]
 
-            # A. Sort lists by price
             added_list.sort(key=get_price_as_int)
             removed_list.sort(key=get_price_as_int)
             current_residences.sort(key=get_price_as_int)
 
-            # B. Send immediate email update ONLY if enabled for this target
             if send_alert:
                 num_added = len(added_list)
                 num_removed = len(removed_list)
@@ -233,12 +283,11 @@ def process_target(target_config):
                 elif num_removed > 0:
                     subject = f"Alerte CROUS Bot (-): {num_removed} résidence{plural(num_removed, '', 's')} {plural(num_removed, 'n’est', 'ne sont')} plus disponible{plural(num_removed, '', 's')}"
                 
-                email_body = create_alert_email_body("Changement de disponibilité !", added_list, removed_list, current_residences)
+                email_body = create_alert_email_body(f"Changement de disponibilité !", added_list, removed_list, current_residences)
                 send_email(subject, email_body)
             else:
                 print("Immediate alert is disabled for this target. Skipping email.")
 
-            # C. Log changes for the daily summary (always do this)
             activity_log_headers = ['timestamp_cet', 'status', 'name', 'price', 'address', 'details', 'link']
             activity_to_log = []
             for item in added_list:
@@ -252,11 +301,9 @@ def process_target(target_config):
             if activity_to_log:
                 append_list_to_csv(activity_log_csv, activity_to_log, activity_log_headers)
 
-            # D. Update the master state file (always do this)
             headers = ['name', 'price', 'address', 'details', 'link']
             write_list_to_csv(available_csv, current_residences, headers)
             
-            # E. Update the master removed log (always do this)
             if removed_list:
                 timestamp = now_cet.strftime("%Y-%m-%d %H:%M:%S %Z")
                 for item in removed_list:

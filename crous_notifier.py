@@ -2,7 +2,6 @@
 # Re-architected to handle multiple, independently configured monitoring targets.
 # Includes both immediate change notifications AND a comprehensive daily summary report,
 # with per-target email controls and data storage folders.
-# --- NOW CONFIGURED FOR BREVO (FORMERLY SENDINBLUE) ---
 
 import requests
 from bs4 import BeautifulSoup
@@ -17,11 +16,9 @@ import pprint
 
 # --- Global Configuration ---
 # PRODUCTION: Email configuration is read from environment variables
-# --- MODIFIED FOR BREVO ---
-BREVO_LOGIN = os.environ.get("BREVO_LOGIN")
-BREVO_API_KEY = os.environ.get("BREVO_API_KEY") # Brevo's SMTP Key acts as the password
+SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
 TO_EMAIL = os.environ.get("TO_EMAIL")
-FROM_EMAIL = os.environ.get("FROM_EMAIL") # This must be a verified sender in your Brevo account
+FROM_EMAIL = os.environ.get("FROM_EMAIL")
 SENDER_NAME = "CROUS BOT Notifier"
 
 HEADERS = {
@@ -94,11 +91,12 @@ def get_price_as_int(residence):
         print(f"Warning: Could not parse price '{price_str}', sorting to end")
         return 9999
 
+# --- NEW: Helper function for elegant pluralization ---
 def plural(n, singular, plural_form):
     """Returns the singular or plural form of a word based on the count n."""
     return singular if n == 1 else plural_form
 
-# --- Email and Reporting Functions ---
+# --- Email and Reporting Functions (Unchanged) ---
 
 def format_residence_html(residence, color="black"):
     """Formats a single residence into an HTML block."""
@@ -162,8 +160,8 @@ def create_summary_email_body(title, added, removed, all_available):
     return html
 
 def send_email(subject, html_body):
-    """Sends the email using Brevo's SMTP."""
-    if not all([BREVO_LOGIN, BREVO_API_KEY, TO_EMAIL, FROM_EMAIL]):
+    """Sends the email using SendGrid."""
+    if not all([SENDGRID_API_KEY, TO_EMAIL, FROM_EMAIL]):
         print("Email credentials not found. Cannot send email.")
         return
     msg = MIMEMultipart('alternative')
@@ -172,10 +170,9 @@ def send_email(subject, html_body):
     msg['To'] = TO_EMAIL
     msg.attach(MIMEText(html_body, 'html', 'utf-8'))
     try:
-        # --- MODIFIED FOR BREVO ---
-        with smtplib.SMTP("smtp-relay.brevo.com", 587) as server:
+        with smtplib.SMTP("smtp.sendgrid.net", 587) as server:
             server.starttls()
-            server.login(BREVO_LOGIN, BREVO_API_KEY)
+            server.login("apikey", SENDGRID_API_KEY)
             server.sendmail(FROM_EMAIL, TO_EMAIL, msg.as_string())
         print(f"Email with subject '{subject}' sent successfully!")
     except Exception as e:
@@ -230,7 +227,7 @@ def process_target(target_config):
                 if num_added > 0 and num_removed > 0:
                     added_str = f"+{num_added} {plural(num_added, 'ajoutée', 'ajoutées')}"
                     removed_str = f"-{num_removed} {plural(num_removed, 'retirée', 'retirées')}"
-                    subject = f"Alerte CROUS Bot : {added_str}, {removed_str}"
+                    subject = f"Alerte CROUS Bot ({folder}): {added_str}, {removed_str}"
                 elif num_added > 0:
                     subject = f"Alerte CROUS Bot (+): {num_added} nouvelle{plural(num_added, '', 's')} résidence{plural(num_added, '', 's')} disponible{plural(num_added, '', 's')} !"
                 elif num_removed > 0:
@@ -320,7 +317,7 @@ if __name__ == "__main__":
         },
         {
             "url": "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6386987_44.9161806_-0.5336838_44.8107826",
-            "folder_name": "data_bordeaux",
+            "folder_name": "bordeaux_data",
             "send_immediate_alert": True,
             "send_daily_report": True
         }

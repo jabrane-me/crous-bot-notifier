@@ -1,7 +1,7 @@
 # Final Crous Notifier Script
 # Re-architected to handle multiple, independently configured monitoring targets.
 # Includes both immediate change notifications AND a comprehensive daily summary report.
-# --- CONFIGURED FOR SENDGRID ---
+# --- NOW WITH PAGINATION SUPPORT ---
 
 import requests
 from bs4 import BeautifulSoup
@@ -18,9 +18,10 @@ import re
 
 # --- Global Configuration ---
 # PRODUCTION: Email configuration is read from environment variables
-SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
+BREVO_LOGIN = os.environ.get("BREVO_LOGIN")
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY") # Brevo's SMTP Key acts as the password
 TO_EMAIL = os.environ.get("TO_EMAIL")
-FROM_EMAIL = os.environ.get("FROM_EMAIL")
+FROM_EMAIL = os.environ.get("FROM_EMAIL") # This must be a verified sender in your Brevo account
 SENDER_NAME = "CROUS BOT Notifier"
 
 HEADERS = {
@@ -37,7 +38,7 @@ def scrape_crous_page(url):
     all_residences = []
     
     try:
-        # Fetch the original, unmodified URL first (this is page 1)
+        # --- MODIFIED: Fetch the original, unmodified URL first (this is page 1) ---
         print(f"Fetching page 1 to determine total pages for: {url}")
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
@@ -50,6 +51,7 @@ def scrape_crous_page(url):
             match = re.search(r'(\d+)\s+logement', results_text)
             if match:
                 total_residences = int(match.group(1))
+                # The website shows 24 residences per page
                 total_pages = math.ceil(total_residences / 24)
                 print(f"Found {total_residences} total residences across {int(total_pages)} page(s).")
             else:
@@ -57,7 +59,7 @@ def scrape_crous_page(url):
         else:
             print("Could not find results header. Assuming 1 page.")
 
-        # Process the first page's content
+        # The first page's soup is already loaded, so we process it.
         cards = soup.find_all('div', class_='fr-card')
         for card in cards:
             residence = {}
@@ -71,15 +73,19 @@ def scrape_crous_page(url):
                 residence['details'] = " | ".join([d.get_text(strip=True) for d in details])
                 all_residences.append(residence)
 
-        # Loop through the rest of the pages if they exist
+        # Now, loop through the rest of the pages if they exist
         if total_pages > 1:
+            # Clean any existing page param from the base URL to construct subsequent page URLs
             base_url = re.sub(r'[?&]page=\d+', '', url)
+            
             for page_num in range(2, int(total_pages) + 1):
                 page_url = base_url
                 if '?' in page_url:
+                    # Append with '&' if other parameters already exist
                     if not page_url.endswith('&'): page_url += '&'
                     page_url += f'page={page_num}'
                 else:
+                    # Append with '?' if it's the first parameter
                     page_url += f'?page={page_num}'
                 
                 print(f"Fetching page {page_num}...")
@@ -214,8 +220,8 @@ def create_summary_email_body(title, added, removed, all_available):
     return html
 
 def send_email(subject, html_body):
-    """Sends the email using SendGrid."""
-    if not all([SENDGRID_API_KEY, TO_EMAIL, FROM_EMAIL]):
+    """Sends the email using Brevo's SMTP."""
+    if not all([BREVO_LOGIN, BREVO_API_KEY, TO_EMAIL, FROM_EMAIL]):
         print("Email credentials not found. Cannot send email.")
         return
     msg = MIMEMultipart('alternative')
@@ -224,9 +230,9 @@ def send_email(subject, html_body):
     msg['To'] = TO_EMAIL
     msg.attach(MIMEText(html_body, 'html', 'utf-8'))
     try:
-        with smtplib.SMTP("smtp.sendgrid.net", 587) as server:
+        with smtplib.SMTP("smtp-relay.brevo.com", 587) as server:
             server.starttls()
-            server.login("apikey", SENDGRID_API_KEY)
+            server.login(BREVO_LOGIN, BREVO_API_KEY)
             server.sendmail(FROM_EMAIL, TO_EMAIL, msg.as_string())
         print(f"Email with subject '{subject}' sent successfully!")
     except Exception as e:
@@ -277,13 +283,13 @@ def process_target(target_config):
                 if num_added > 0 and num_removed > 0:
                     added_str = f"+{num_added} {plural(num_added, 'ajoutée', 'ajoutées')}"
                     removed_str = f"-{num_removed} {plural(num_removed, 'retirée', 'retirées')}"
-                    subject = f"Alerte CROUS Bot ({folder}): {added_str}, {removed_str}"
+                    subject = f"Alerte CROUS Bot : {added_str}, {removed_str}"
                 elif num_added > 0:
                     subject = f"Alerte CROUS Bot (+): {num_added} nouvelle{plural(num_added, '', 's')} résidence{plural(num_added, '', 's')} disponible{plural(num_added, '', 's')} !"
                 elif num_removed > 0:
                     subject = f"Alerte CROUS Bot (-): {num_removed} résidence{plural(num_removed, '', 's')} {plural(num_removed, 'n’est', 'ne sont')} plus disponible{plural(num_removed, '', 's')}"
                 
-                email_body = create_alert_email_body(f"Changement de disponibilité !", added_list, removed_list, current_residences)
+                email_body = create_alert_email_body("Changement de disponibilité !", added_list, removed_list, current_residences)
                 send_email(subject, email_body)
             else:
                 print("Immediate alert is disabled for this target. Skipping email.")
@@ -364,7 +370,7 @@ if __name__ == "__main__":
         },
         {
             "url": "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6386987_44.9161806_-0.5336838_44.8107826",
-            "folder_name": "bordeaux_data",
+            "folder_name": "data_bordeaux",
             "send_immediate_alert": True,
             "send_daily_report": True
         }

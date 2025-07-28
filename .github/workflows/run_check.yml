@@ -38,6 +38,8 @@ jobs:
       # It securely passes your secrets as environment variables
       - name: Run the housing check script
         env:
+          BREVO_LOGIN: ${{ secrets.BREVO_LOGIN }}
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}

@@ -29,9 +29,6 @@ HEADERS = {
 }
 CET = timezone(timedelta(hours=1))
 
-
-print(f"DEBUG: BREVO_LOGIN='{os.environ.get('BREVO_LOGIN')}', BREVO_API_KEY_EXISTS={bool(os.environ.get('BREVO_API_KEY'))}, TO_EMAIL='{os.environ.get('TO_EMAIL')}', FROM_EMAIL='{os.environ.get('FROM_EMAIL')}'")
-
 # --- Core Scraping and File Functions ---
 
 def scrape_crous_page(url):

@@ -338,7 +338,7 @@ def process_target(target_config):
 
     # --- Part 2: Comprehensive Daily Summary Report ---
     print(f"\n--- Checking for Daily Summary Report for '{folder}' ---")
-    is_report_time = (now_cet.hour == 22) or (now_cet.hour == 23 and now_cet.minute <= 30)
+    is_report_time = (now_cet.hour == 23 and now_cet.minute <= 30) or (now_cet.hour == 23 and now_cet.minute <= 59)
     report_log = read_csv_to_list(report_log_csv)
     sent_today = any(log.get('sent_date') == today_str for log in report_log)
 

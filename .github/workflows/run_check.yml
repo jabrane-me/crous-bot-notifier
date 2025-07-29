@@ -6,7 +6,7 @@ on:
 
   # Sets up the schedule to run automatically every hour
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '*/5 * * * *'
 
 jobs:
   run-scraper:

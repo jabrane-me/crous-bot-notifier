@@ -254,7 +254,7 @@ def process_target(target_config):
     available_csv = os.path.join(folder, 'available_residences.csv')
     removed_log_csv = os.path.join(folder, 'removed_residences.log.csv')
     activity_log_csv = os.path.join(folder, 'daily_activity_log.csv')
-    report_log_csv = os.path.join(folder, 'report_log.csv')
+    report_log_csv = os.path.join(folder, 'daily_report_log.csv')
 
     now_cet = datetime.now(CET)
     today_str = now_cet.strftime('%Y-%m-%d')
@@ -370,7 +370,7 @@ if __name__ == "__main__":
         },
         {
             "url": "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6386987_44.9161806_-0.5336838_44.8107826",
-            "folder_name": "data_bordeaux",
+            "folder_name": "bordeaux_data",
             "send_immediate_alert": True,
             "send_daily_report": True
         }

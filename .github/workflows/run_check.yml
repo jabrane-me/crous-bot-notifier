@@ -2,11 +2,12 @@ name: Check for Crous Housing Hourly
 
 on:
   # Allows you to run this workflow manually from the Actions tab on GitHub
+  # For cron-job.org "cheat code" for more reliable scheduling exactly every 5 minutes.
   workflow_dispatch:
 
-  # Sets up the schedule to run automatically every hour
+  # Sets up the schedule to run automatically “At 01:00.” to Prevent Disablement
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '0 1 * * *'
 
 jobs:
   run-scraper:

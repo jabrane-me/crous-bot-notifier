@@ -351,12 +351,8 @@ def process_target(target_config):
         total_removed_today = [row for row in today_activity if row.get('status') == 'removed']
 
         # --- MODIFIED: Handle single URL or list of URLs ---
-        for ur in urls_to_scrape:
-            scraped_data = scrape_crous_page(ur)
-            if scraped_data:
-                final_scraped_residences.extend(scraped_data)
 
-        final_residences = final_scraped_residences
+        final_residences = all_scraped_residences
         if final_residences is None:
             final_residences = read_csv_to_list(available_csv)
 

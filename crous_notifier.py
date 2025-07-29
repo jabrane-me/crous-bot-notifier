@@ -261,7 +261,24 @@ def process_target(target_config):
     
     # --- Part 1: Immediate Change Detection and Notification ---
     print(f"--- Running Hourly Change Detection for '{folder}' ---")
-    current_residences = scrape_crous_page(url)
+    # current_residences = scrape_crous_page(url)
+
+    # --- MODIFIED: Handle single URL or list of URLs ---
+    urls_to_scrape = []
+    if isinstance(url, list):
+        urls_to_scrape.extend(url)
+    else:
+        urls_to_scrape.append(url)
+
+    all_scraped_residences = []
+    for ur in urls_to_scrape:
+        scraped_data = scrape_crous_page(ur)
+        if scraped_data:
+            all_scraped_residences.extend(scraped_data)
+
+    current_residences = all_scraped_residences
+    print(f"Found a total of {len(current_residences)} residences for '{folder}'.")
+
     if current_residences is not None:
         previous_residences = read_csv_to_list(available_csv)
         current_set = {make_dict_hashable(d) for d in current_residences}
@@ -333,7 +350,13 @@ def process_target(target_config):
         total_added_today = [row for row in today_activity if row.get('status') == 'added']
         total_removed_today = [row for row in today_activity if row.get('status') == 'removed']
 
-        final_residences = scrape_crous_page(url)
+        # --- MODIFIED: Handle single URL or list of URLs ---
+        for ur in urls_to_scrape:
+            scraped_data = scrape_crous_page(ur)
+            if scraped_data:
+                final_scraped_residences.extend(scraped_data)
+
+        final_residences = final_scraped_residences
         if final_residences is None:
             final_residences = read_csv_to_list(available_csv)
 
@@ -369,7 +392,12 @@ if __name__ == "__main__":
             "send_daily_report": True
         },
         {
-            "url": "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6386987_44.9161806_-0.5336838_44.8107826",
+            "url": [
+                "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6386987_44.9161806_-0.5336838_44.8107826",
+                "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.7587897_44.8225797_-0.6029478_44.749435",
+                "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6111634_44.8252468_-0.5726706_44.7868187",
+                "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6471483_44.7938687_-0.5854508_44.7423986"
+            ],
             "folder_name": "bordeaux_data",
             "send_immediate_alert": True,
             "send_daily_report": True

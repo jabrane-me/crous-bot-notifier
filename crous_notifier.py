@@ -301,11 +301,11 @@ def process_target(target_config):
                 if num_added > 0 and num_removed > 0:
                     added_str = f"+{num_added} {plural(num_added, 'ajoutée', 'ajoutées')}"
                     removed_str = f"-{num_removed} {plural(num_removed, 'retirée', 'retirées')}"
-                    subject = f"Alerte CROUS Bot : {added_str}, {removed_str}"
+                    subject = f"Alerte CROUS Bot {folder} : {added_str}, {removed_str}"
                 elif num_added > 0:
-                    subject = f"Alerte CROUS Bot (+): {num_added} nouvelle{plural(num_added, '', 's')} résidence{plural(num_added, '', 's')} disponible{plural(num_added, '', 's')} !"
+                    subject = f"Alerte CROUS Bot (+ {folder}): {num_added} nouvelle{plural(num_added, '', 's')} résidence{plural(num_added, '', 's')} disponible{plural(num_added, '', 's')} !"
                 elif num_removed > 0:
-                    subject = f"Alerte CROUS Bot (-): {num_removed} résidence{plural(num_removed, '', 's')} {plural(num_removed, 'n’est', 'ne sont')} plus disponible{plural(num_removed, '', 's')}"
+                    subject = f"Alerte CROUS Bot (- {folder}): {num_removed} résidence{plural(num_removed, '', 's')} {plural(num_removed, 'n’est', 'ne sont')} plus disponible{plural(num_removed, '', 's')}"
                 
                 email_body = create_alert_email_body("Changement de disponibilité !", added_list, removed_list, current_residences)
                 send_email(subject, email_body)

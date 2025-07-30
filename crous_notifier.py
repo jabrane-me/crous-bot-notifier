@@ -276,8 +276,9 @@ def process_target(target_config):
         if scraped_data:
             all_scraped_residences.extend(scraped_data)
 
-    current_residences = all_scraped_residences
-    print(f"Found a total of {len(current_residences)} residences for '{folder}'.")
+    unique_residences_dict = {res['link']: res for res in all_scraped_residences}
+    current_residences = list(unique_residences_dict.values())
+    print(f"Found a total of {len(current_residences)} unique residences for '{folder}'.")
 
     if current_residences is not None:
         previous_residences = read_csv_to_list(available_csv)
@@ -352,7 +353,7 @@ def process_target(target_config):
 
         # --- MODIFIED: Handle single URL or list of URLs ---
 
-        final_residences = all_scraped_residences
+        final_residences = current_residences
         if final_residences is None:
             final_residences = read_csv_to_list(available_csv)
 

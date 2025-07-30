@@ -385,7 +385,7 @@ if __name__ == "__main__":
         {
             "url": "https://trouverunlogement.lescrous.fr/tools/41/search",
             "folder_name": ".",
-            "send_immediate_alert": True,
+            "send_immediate_alert": False,
             "send_daily_report": True
         },
         {

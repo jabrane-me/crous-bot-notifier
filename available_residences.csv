@@ -1,6 +1,7 @@
 name,price,address,details,link
 Residence Pascal Paoli 1,235 €,"22, avenue Jean NICOLI, BP 55, 20250 CORTE","12 m² | Individuel | 1 lit simple | WC, Douche, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1521
 LE VELUM,"de 245,06 à 490,1 €",Avenue du Commandant CLERE 40000 MONT-DE-MARSAN,"29 m² | Individuel, Colocation | 2 lits simples | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/522
+Residence René THOM,246 €,37 avenue clemenceau - 25200 MONTBELIARD,"40 m² | Colocation | 2 lits rapprochables | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1315
 BAZEILLES,275 €,12 place de l infanterie de marine 08140 BAZEILLES,"21 m² | Individuel | 2 lits simples | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1224
 Residence Duvillard,277 €,2 rue Ernest Duvillard - BP 80523 - 90016 BELFORT CEDEX,"9 m² | Individuel | 1 lit simple | WC, Douche, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1158
 Orsay-Fleming,"283,05 €","21, rue André Maginot 91400 ORSAY","28,88 m² | Individuel, Colocation | 2 lits simples | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2555
@@ -12,7 +13,6 @@ Residence René THOM,"349,5 €",37 avenue clemenceau - 25200 MONTBELIARD,"24 m�
 Résidence Portes du Jura,"354,5 €","23, rue Maurice RAVEL - 25200 MONTBELIARD","18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1298
 FILAOS,368 €,1 rue colonel dumont - ILOT M 38000 GRENOBLE,"66 m² | Colocation | 3 lits simples | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/574
 MAISON DES ETUDIANTS,370 €,38 Rue de Montjoly 08000 CHARLEVILLE MEZIERES,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1567
-LEONARD DE VINCI,370 €,24 Place Léonard De Vinci 10430 ROSIERES PRES TROYES,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1522
 Residence J.P. Sartre,"de 373,05 à 429,65 €","1, rue Gaston DEFERRE - 90000 BELFORT -","35 m² | Individuel, Couple | 1 lit simple, 1 lit rapprochable | WC, Douche, Evier + plaque, Frigo, Duplex, Balcon",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1184
 BOSQUET,"397,24 €",269 place de la caserne Bosquet 40000 MONT-DE-MARSAN,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo | Logement adaptéPMR",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2369
 RESIDENCE DELOUARD,"398,65 €",1 Rue Moise Delouard Bat A 80000 AMIENS,"79,62 m² | Colocation | 4 lits simples | Pièce à vivre, WC, Douche, Evier + plaque, Frigo, Micro-onde, Duplex, Balcon",https://trouverunlogement.lescrous.fr/tools/41/accommodations/508
@@ -21,7 +21,6 @@ Residence René THOM,"408,5 €",37 avenue clemenceau - 25200 MONTBELIARD,"32 m�
 Residence René THOM,"408,5 €",37 avenue clemenceau - 25200 MONTBELIARD,"de 27 à 31 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1306
 CRESSONNIERE,"417,78 €",Av. Michel Serres 47000 AGEN,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2147
 Residence Pascal Paoli 2,427 €,"22, avenue Jean Nicoli, BP 55, 20250 CORTE","de 18 à 20 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo, Micro-onde, Balcon",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1535
-Residence René THOM,"438,5 €",37 avenue clemenceau - 25200 MONTBELIARD,"40 m² | Individuel | 2 lits rapprochables | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1315
 Residence Braudel,"482,4 €",3 rue Marcel Paul - 90000 BELFORT -,"47 m² | Individuel, Couple | 2 lits rapprochables | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1157
 CU BRIDOUX,"558,07 €",2 rue du Général Delestraint CS 15250 57076 METZ CEDEX 03,50 m² | Individuel | 2 lits rapprochables,https://trouverunlogement.lescrous.fr/tools/41/accommodations/2993
 CRESSONNIERE,"629,35 €",Av. Michel Serres 47000 AGEN,"30 m² | Individuel, Couple | 2 lits rapprochables | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/267

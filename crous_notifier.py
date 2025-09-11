@@ -386,7 +386,7 @@ if __name__ == "__main__":
             "url": "https://trouverunlogement.lescrous.fr/tools/41/search",
             "folder_name": ".",
             "send_immediate_alert": False,
-            "send_daily_report": True
+            "send_daily_report": False
         },
         {
             "url": [
@@ -396,8 +396,8 @@ if __name__ == "__main__":
                 "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6471483_44.7938687_-0.5854508_44.7423986"
             ],
             "folder_name": "bordeaux_data",
-            "send_immediate_alert": True,
-            "send_daily_report": True
+            "send_immediate_alert": False,
+            "send_daily_report": False
         }
     ]
 

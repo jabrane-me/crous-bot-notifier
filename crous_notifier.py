@@ -20,7 +20,7 @@ import re
 # PRODUCTION: Email configuration is read from environment variables
 BREVO_LOGIN = os.environ.get("BREVO_LOGIN")
 BREVO_API_KEY = os.environ.get("BREVO_API_KEY") # Brevo's SMTP Key acts as the password
-TO_EMAIL = os.environ.get("TO_EMAIL_Ismail")
+TO_EMAIL = os.environ.get("TO_EMAIL_ISMAIL")
 FROM_EMAIL = os.environ.get("FROM_EMAIL") # This must be a verified sender in your Brevo account
 SENDER_NAME = "CROUS BOT Notifier"
 

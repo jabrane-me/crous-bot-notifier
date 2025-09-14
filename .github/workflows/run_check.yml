@@ -43,6 +43,7 @@ jobs:
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          TO_EMAIL_ISMAIL: ${{ secrets.TO_EMAIL_ISMAIL }}
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
         run: python crous_notifier.py
 

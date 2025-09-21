@@ -1,11 +1,16 @@
 name,price,address,details,link
+CU HAUTE MALGRANGE,"153,7 €",8 Rue Jean Lamour 54500 VANDOEUVRE LES NANCY,9 m² | Individuel | 1 lit simple | Frigo,https://trouverunlogement.lescrous.fr/tools/41/accommodations/51
+CU SAURUPT,"153,7 €",Rue de Saurupt 54000 NANCY,9 m² | Individuel | 1 lit simple | Frigo,https://trouverunlogement.lescrous.fr/tools/41/accommodations/467
 Résidence de Souilhac,"230,89 €",35 rue d'Arsonval 19000 TULLE,"57 m² | Colocation, Individuel | 2 lits simples | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1356
 Residence Pascal Paoli 1,235 €,"22, avenue Jean NICOLI, BP 55, 20250 CORTE","12 m² | Individuel | 1 lit simple | WC, Douche, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1521
 LE VELUM,"245,06 €",Avenue du Commandant CLERE 40000 MONT-DE-MARSAN,"29 m² | Colocation | 2 lits simples | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/522
 Cité Guérin,"258,75 €",39A rue Camille Guérin 87038 LIMOGES CEDEX,"12 m² | Individuel | 1 lit simple | WC, Douche, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/285
+TRONCHE,de 268 à 385 €,3 chemin des grenouilles 38700 La Tronche,"de 8,1 à 16 m² | Individuel | 1 lit simple | Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2126
+GISELE HALIMI,"de 268 à 315,5 €","5, rue d'Arsonval 38000 Grenoble","de 8,86 à 15,83 m² | Individuel | 1 lit simple | WC, Douche",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2925
 CITE BELLE BEILLE,"272,32 €",8 - 10 BD BEAUSSIER 49045 ANGERS CEDEX 01,"9 m² | Individuel | 1 lit simple | WC, Douche, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2594
 BAZEILLES,275 €,12 place de l infanterie de marine 08140 BAZEILLES,"21 m² | Individuel | 2 lits simples | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1224
 Residence Braudel,"293,8 €",3 rue Marcel Paul - 90000 BELFORT -,"de 18 à 19 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1136
+MDE,"de 311,5 à 385 €",6 PLACE PASTEUR 38000 GRENOBLE,de 10 à 22 m² | Individuel | 1 lit simple,https://trouverunlogement.lescrous.fr/tools/41/accommodations/87
 TERRALIS,323 €,AVENUE JULES FLANDRIN 38100 GRENOBLE,"52 m² | Colocation | 3 lits simples | Pièce à vivre, WC, Douche, Evier + plaque",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2660
 BAZEILLES,338 €,12 place de l infanterie de marine 08140 BAZEILLES,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1211
 MDE,"338,5 €",6 PLACE PASTEUR 38000 GRENOBLE,"95 m² | Colocation | 4 lits simples | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1704
@@ -14,12 +19,10 @@ CLE DES CHAMPS,"de 353,11 à 706,21 €",7 RUE SAINT JOHN PERSE 64000 PAU,"51 m�
 MAISON DES ETUDIANTS,370 €,38 Rue de Montjoly 08000 CHARLEVILLE MEZIERES,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1567
 CLACTON,372 €,20 RUE CLACTON TENDRING 26000 VALENCE,"de 23 à 32 m² | Individuel | 1 lit simple | Pièce à vivre, WC, Douche, Evier + plaque, Frigo, Duplex",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2508
 Residence Braudel,"373,75 €",3 rue Marcel Paul - 90000 BELFORT -,"30 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1144
-LE VELUM,"401,32 €",Avenue du Commandant CLERE 40000 MONT-DE-MARSAN,"19 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/506
 Résidence Saint Louis,"410,88 €",7 rue Saint Louis 62200 BOULOGNE-SUR-MER,"24 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/321
 Residence Pascal Paoli 2,427 €,"22, avenue Jean Nicoli, BP 55, 20250 CORTE","de 18 à 20 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo, Micro-onde, Balcon",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1535
 Résidence Olympie,"455,89 €",Avenue Descartes 62219 LONGUENESSE,"25 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/270
 Residence Braudel,"482,4 €",3 rue Marcel Paul - 90000 BELFORT -,"47 m² | Individuel, Couple | 2 lits rapprochables | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1157
 GALILEE,517 €,6 place Pasteur - 38100 GRENOBLE,"de 16,1 à 29,8 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2688
-CU LA BATELIERE,"548,52 €",7 à 15 route de Metz 54320 Maxéville,"de 23 à 28 m² | Couple, Individuel | 2 lits rapprochables | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/736
 CU BRIDOUX,"558,07 €",2 rue du Général Delestraint CS 15250 57076 METZ CEDEX 03,50 m² | Individuel | 2 lits rapprochables,https://trouverunlogement.lescrous.fr/tools/41/accommodations/2993
 GALILEE,790 €,6 place Pasteur - 38100 GRENOBLE,"27,8 m² | Individuel, Couple | 1 lit double | WC, Douche, Evier + plaque, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2689

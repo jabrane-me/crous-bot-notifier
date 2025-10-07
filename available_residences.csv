@@ -1,6 +1,7 @@
 name,price,address,details,link
 CU SAURUPT,"153,7 €",Rue de Saurupt 54000 NANCY,9 m² | Individuel | 1 lit simple | Frigo,https://trouverunlogement.lescrous.fr/tools/41/accommodations/467
 VICTOIRE,"de 218,93 à 437,89 €",42 rue Sauteyron 33000 BORDEAUX,"de 20,79 à 22,989 m² | Individuel, Colocation, Couple | 2 lits rapprochables | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/690
+RESIDENCE LA GARIDELLE,"de 220,51 à 327,52 €","10, rue St Bernard - 84000 AVIGNON","de 34,07 à 59,24 m² | Colocation | 2 lits simples | WC, Douche, Evier + plaque, Frigo, Duplex",https://trouverunlogement.lescrous.fr/tools/41/accommodations/630
 Résidence de Souilhac,"230,89 €",35 rue d'Arsonval 19000 TULLE,"57 m² | Colocation, Individuel | 2 lits simples | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1356
 Residence Pascal Paoli 1,235 €,"22, avenue Jean NICOLI, BP 55, 20250 CORTE","12 m² | Individuel | 1 lit simple | WC, Douche, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1521
 Résidence les Dolines,"de 247,45 à 490,46 €",2255 route des Dolines - 06560 VALBONNE,"32 m² | Individuel, Colocation | 2 lits simples | WC, Douche, Evier + plaque, Frigo, Balcon",https://trouverunlogement.lescrous.fr/tools/41/accommodations/40
@@ -16,8 +17,8 @@ Orsay-Fleming,"283,05 €","21, rue André Maginot 91400 ORSAY","28,88 m² | Ind
 RESIDENCE ALLIX,"292,2 €",2 rue soeur Bouvier 69322 LYON Cedex 05,"de 10 à 11 m² | Individuel | 1 lit simple | WC, Douche, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/32
 RESIDENCE JACQUES CAVALIER,"292,2 €","8, Rue J Koehler 69424 LYON Cedex 03","de 9 à 12 m² | Individuel | 1 lit simple | WC, Douche, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/350
 RESIDENCE LA MADELEINE,"292,2 €",4 rue du Sauveur 69007 Lyon,"9 m² | Individuel | 1 lit simple | WC, Douche, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1067
-RESIDENCE PUVIS,"292,2 €",29 rue Marguerite 69100 Villeurbanne,"de 9 à 11 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1448
 RESIDENCE JUSSIEU,"292,2 €",3 avenue A. EINSTEIN 69100 VILLEURBANNE,"de 10 à 10,5 m² | Individuel | 1 lit simple | WC, Douche, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1588
+RESIDENCE PUVIS,"292,2 €",29 rue Marguerite 69100 Villeurbanne,"de 9 à 11 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1448
 CU NOTRE DAME DE LOURDES,"300,15 €",3 rue Notre-Dame de Lourdes 54000 NANCY,"12,5 m² | Individuel | 1 lit simple | WC, Douche, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1341
 EMILE DURKHEIM,"de 310,34 à 620,67 €",Allée Ausone / Avenue Léon Duguit 33600 PESSAC,"30 m² | Colocation, Couple | 2 lits rapprochables | Pièce à vivre, WC, Douche, Evier + plaque, Frigo | Logement adaptéPMR",https://trouverunlogement.lescrous.fr/tools/41/accommodations/158
 LES COINCHETTES,313 €,21 Bis route de la Pomme 36100 ISSOUDUN,"30 m² | Colocation | 2 lits simples | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1632
@@ -44,8 +45,8 @@ CU HAUTE MALGRANGE,"372,19 €",8 Rue Jean Lamour 54500 VANDOEUVRE LES NANCY,"13
 RESIDENCE ALICE GUY,"374,3 €",7 avenue de l'Europe Bât E 69500 Bron,"de 145 à 151 m² | Colocation | 4 lits simples | Pièce à vivre, WC, Douche, Evier + plaque, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/3034
 RESIDENCE ALICE GUY,"377,7 €",7 avenue de l'Europe Bât E 69500 Bron,"de 71,2 à 76,5 m² | Colocation | 4 lits simples | Pièce à vivre, WC, Douche, Evier + plaque, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/3032
 CU TECHNOPOLE 3,"378,73 €","14, rue des Linières 57070 METZ","18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/807
-RESIDENCE MAR I SOL,"379,65 €",18 AV. ALFRED SAUVY 66100 PERPIGNAN,"30 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1132
 RESIDENCE LA METARE,"384,5 €",25 Boulevard Paul Michelon 42023 SAINT-ETIENNE CEDEX 2,"de 17,3 à 20 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1111
+RESIDENCE VILLE EN BOIS,"394,96 €",Avenue des Amériques - 17000 LA ROCHELLE,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/686
 BOSQUET,"397,24 €",269 place de la caserne Bosquet 40000 MONT-DE-MARSAN,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2608
 LE VELUM,"401,32 €",Avenue du Commandant CLERE 40000 MONT-DE-MARSAN,"19 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/506
 RESIDENCE JEAN JOUZEL,"402,56 €","172, rue de Coureilles - 17000 LA ROCHELLE","18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/652

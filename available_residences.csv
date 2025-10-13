@@ -1,6 +1,5 @@
 name,price,address,details,link
 CU HAUTE MALGRANGE,"153,7 €",8 Rue Jean Lamour 54500 VANDOEUVRE LES NANCY,9 m² | Individuel | 1 lit simple | Frigo,https://trouverunlogement.lescrous.fr/tools/41/accommodations/51
-Ulis,"180,05 €","15, rue le Bosquet 91940 les ULIS","0 m² | Colocation | 3 lits simples | Pièce à vivre, WC, Douche, Evier + plaque, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2456
 CITE DE MENDE,"de 182,38 à 250,12 €",26 Avenue du 8 mai 1945 48000 Mende,"de 8,5 à 13 m² | Individuel | 1 lit simple | Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2715
 CU MEDREVILLE,"186,71 €","28, rue A. Briand - 54520 LAXOU",9 m² | Individuel | 1 lit simple | Frigo,https://trouverunlogement.lescrous.fr/tools/41/accommodations/195
 RESIDENCE TOUR MAGNE,"de 219,15 à 323,68 €","45 bis, rue Ménard 30021 NIMES Cédex 1","de 14 à 28,8 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1579
@@ -55,6 +54,7 @@ CU MONPLAISIR,"372,19 €",rue Jacques Callot 54500 VANDOEUVRE LES NANCY,"de 13 
 CU BOUDONVILLE,"372,19 €",61 rue de Boudonville 54052 NANCY cedex,"13,5 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo, Balcon",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1603
 CU MONBOIS LIBERATION,"372,19 €",136 avenue de la Libération 54000 NANCY,"13,5 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2821
 CLACTON,372 €,20 RUE CLACTON TENDRING 26000 VALENCE,"de 23 à 32 m² | Individuel | 1 lit simple | Pièce à vivre, WC, Douche, Evier + plaque, Frigo, Duplex",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2508
+CU PLACIEUX,"372,19 €",39 Boulevard du Maréchal Lyautey 54600 VILLERS LES NANCY,"13,5 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/377
 RESIDENCE VOLTA,"377,68 €","10, rue Lakanal 49000 ANGERS","18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/600
 RESIDENCE MAR I SOL,"379,65 €",18 AV. ALFRED SAUVY 66100 PERPIGNAN,"30 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1132
 CU VELODROME,"de 380,87 à 390,44 €",Rue Jacques Callot 54500 VANDOEUVRE LES NANCY,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/515
@@ -65,7 +65,6 @@ Résidence de Souilhac,"394,58 €",35 rue d'Arsonval 19000 TULLE,"26 m² | Indi
 BOSQUET,"397,24 €",269 place de la caserne Bosquet 40000 MONT-DE-MARSAN,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2608
 RESIDENCE DELOUARD,"398,65 €",1 Rue Moise Delouard Bat A 80000 AMIENS,"79,62 m² | Colocation | 4 lits simples | Pièce à vivre, WC, Douche, Evier + plaque, Frigo, Micro-onde, Duplex, Balcon",https://trouverunlogement.lescrous.fr/tools/41/accommodations/508
 LE VELUM,"401,32 €",Avenue du Commandant CLERE 40000 MONT-DE-MARSAN,"19 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/506
-RESIDENCE DELOUARD,"402,08 €",1 Rue Moise Delouard Bat A 80000 AMIENS,"18,34 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2459
 CU Loucheur,"404,79 €",13 av. Loucheur 22000 Saint-Brieuc,"36,6 m² | Couple | 2 lits rapprochables | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1842
 Résidence Newton,"404,1 €",2400 route des Dolines - 06560 VALBONNE,"21 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo, Balcon",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1706
 Résidence La Bastide Rouge,"409,82 €",218 Avenue Francis Tonner - 06150 Cannes La Bocca,"19 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2756

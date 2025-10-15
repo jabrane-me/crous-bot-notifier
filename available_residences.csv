@@ -2,6 +2,7 @@ name,price,address,details,link
 CU SAURUPT,"153,7 €",Rue de Saurupt 54000 NANCY,9 m² | Individuel | 1 lit simple | Frigo,https://trouverunlogement.lescrous.fr/tools/41/accommodations/467
 CITE DE MENDE,"de 182,38 à 250,12 €",26 Avenue du 8 mai 1945 48000 Mende,"de 8,5 à 13 m² | Individuel | 1 lit simple | Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2715
 RESIDENCE LA GARIDELLE,"de 220,51 à 327,52 €","10, rue St Bernard - 84000 AVIGNON","de 34,07 à 59,24 m² | Colocation | 2 lits simples | WC, Douche, Evier + plaque, Frigo, Duplex",https://trouverunlogement.lescrous.fr/tools/41/accommodations/630
+Résidence de Souilhac,"230,89 €",35 rue d'Arsonval 19000 TULLE,"57 m² | Colocation, Individuel | 2 lits simples | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1356
 Residence Pascal Paoli 1,235 €,"22, avenue Jean NICOLI, BP 55, 20250 CORTE","12 m² | Individuel | 1 lit simple | WC, Douche, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1521
 GODEHILDE,"de 244,8 à 489,6 €","7, rue du 7e Chasseur 27000 EVREUX","35 m² | Individuel, Colocation, Couple | 2 lits rapprochables | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1416
 Résidence de Felletin,"246,14 €",41 bis Route d'Aubusson 23500 FELLETIN,"9 m² | Individuel | 1 lit simple | Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/3105
@@ -24,7 +25,6 @@ RESIDENCE TREFILERIE,"342,7 €",18A 18B 20A 20B rue Richard 42100 SAINT-ETIENNE
 ANDRE MALRAUX,"344,4 €",93 AV Francis PLANTE 40100 DAX,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2558
 Résidence Gaston Adriensence,"345,19 €",2 rue du Docteur Paul Jean 59600 Maubeuge,"de 16,7 à 17,68 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2891
 RESIDENCE GEORGE BESSE,"346,64 €",100 Rue Georges BESSE 30035 NIMES CEDEX 1,"33 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2220
-Résidence de Felletin,"348,89 €",41 bis Route d'Aubusson 23500 FELLETIN,"de 24 à 32 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1268
 RESIDENCE EINSTEIN,"358,75 €","30, rue Marie Marvingt 49100 ANGERS","18,6 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2546
 RESIDENCE DU PARC,"de 361,85 à 416,22 €","1, square Gabriel Auguste Ancelet 60200 COMPIEGNE","de 76,5 à 94,4 m² | Colocation | 1 lit simple | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2559
 CU Villes Dorées,"362,39 €",56A rue Lafayette 22000 Saint-Brieuc,"17,76 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2886
@@ -35,7 +35,6 @@ MAISON DES ETUDIANTS,370 €,38 Rue de Montjoly 08000 CHARLEVILLE MEZIERES,"18 m
 CLACTON,372 €,20 RUE CLACTON TENDRING 26000 VALENCE,"de 23 à 32 m² | Individuel | 1 lit simple | Pièce à vivre, WC, Douche, Evier + plaque, Frigo, Duplex",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2508
 CU BOUDONVILLE,"372,19 €",61 rue de Boudonville 54052 NANCY cedex,"13,5 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo, Balcon",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1603
 RESIDENCE VOLTA,"377,68 €","10, rue Lakanal 49000 ANGERS","18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/600
-CU TECHNOPOLE 3,"378,73 €","14, rue des Linières 57070 METZ","18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/807
 FEA,390 €,Foyer Etudiant des Alpes - 295 Faubourg Montmélian 73 000 CHAMBERY,12 m² | Individuel | 1 lit simple | Frigo,https://trouverunlogement.lescrous.fr/tools/41/accommodations/2552
 BOSQUET,"397,24 €",269 place de la caserne Bosquet 40000 MONT-DE-MARSAN,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2608
 LE VELUM,"401,32 €",Avenue du Commandant CLERE 40000 MONT-DE-MARSAN,"19 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/506

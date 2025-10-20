@@ -1,6 +1,5 @@
 name,price,address,details,link
 CITE DE MENDE,"de 182,38 à 250,12 €",26 Avenue du 8 mai 1945 48000 Mende,"de 8,5 à 13 m² | Individuel | 1 lit simple | Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2715
-VICTOIRE,"de 218,93 à 437,89 €",42 rue Sauteyron 33000 BORDEAUX,"de 20,79 à 22,989 m² | Individuel, Colocation, Couple | 2 lits rapprochables | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/690
 Résidence de Souilhac,"230,89 €",35 rue d'Arsonval 19000 TULLE,"57 m² | Colocation, Individuel | 2 lits simples | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1356
 Residence Pascal Paoli 1,235 €,"22, avenue Jean NICOLI, BP 55, 20250 CORTE","12 m² | Individuel | 1 lit simple | WC, Douche, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1521
 GODEHILDE,"de 244,8 à 489,6 €","7, rue du 7e Chasseur 27000 EVREUX","35 m² | Individuel, Colocation, Couple | 2 lits rapprochables | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1416
@@ -8,6 +7,7 @@ Résidence de Felletin,"246,14 €",41 bis Route d'Aubusson 23500 FELLETIN,"9 m�
 Résidence les Dolines,"de 247,45 à 490,46 €",2255 route des Dolines - 06560 VALBONNE,"32 m² | Individuel, Colocation | 2 lits simples | WC, Douche, Evier + plaque, Frigo, Balcon",https://trouverunlogement.lescrous.fr/tools/41/accommodations/40
 CU Sévigné,"263,46 €",94 bd. de Sévigné 35700 Rennes,"9 m² | Individuel | 1 lit simple | WC, Douche, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1916
 CU Patton,"263,46 €",12 rue de Houx 35700 Rennes,"9 m² | Individuel | 1 lit simple | WC, Douche, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1892
+CU Maine,"263,46 €",5/8 rue du Maine 35000 Rennes Cedex,"de 9 à 15 m² | Individuel | 1 lit surélevé | WC, Douche, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1981
 CU LA BATELIERE,"de 267,96 à 535,92 €",7 à 15 route de Metz 54320 Maxéville,"de 23 à 28 m² | Individuel, Colocation, Couple | 2 lits rapprochables | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/722
 TRONCHE,de 268 à 385 €,3 chemin des grenouilles 38700 La Tronche,"de 8,1 à 16 m² | Individuel | 1 lit simple | Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2126
 CITE LAKANAL,"272,32 €",25 RUE LAMARCK 49045 ANGERS CEDEX,"9 m² | Individuel | 1 lit simple | WC, Douche, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2273
@@ -43,13 +43,11 @@ La GRAVIERE,370 €,36 Rue de la Gravière 08000 CHARLEVILLE-MEZIERES,"18 m² | 
 MAISON DES ETUDIANTS,370 €,38 Rue de Montjoly 08000 CHARLEVILLE MEZIERES,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1567
 CLACTON,372 €,20 RUE CLACTON TENDRING 26000 VALENCE,"de 23 à 32 m² | Individuel | 1 lit simple | Pièce à vivre, WC, Douche, Evier + plaque, Frigo, Duplex",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2508
 RESIDENCE MAR I SOL,"379,65 €",18 AV. ALFRED SAUVY 66100 PERPIGNAN,"30 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1132
-RESIDENCE LAUGIER,"384,57 €",100 rue Carretterie - 84000 AVIGNON,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/719
 GODEHILDE,"388,5 €","7, rue du 7e Chasseur 27000 EVREUX","20 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2018
 BOSQUET,"397,24 €",269 place de la caserne Bosquet 40000 MONT-DE-MARSAN,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2608
 RESIDENCE DELOUARD,"398,65 €",1 Rue Moise Delouard Bat A 80000 AMIENS,"79,62 m² | Colocation | 4 lits simples | Pièce à vivre, WC, Douche, Evier + plaque, Frigo, Micro-onde, Duplex, Balcon",https://trouverunlogement.lescrous.fr/tools/41/accommodations/508
 JEAN ZAY,400 €,25/27 rue des Bas-Bourgs 28000 CHARTRES,"32 m² | Individuel | 2 lits simples | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1583
 LE VELUM,"401,32 €",Avenue du Commandant CLERE 40000 MONT-DE-MARSAN,"19 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/506
-CAVE,de 401 à 412 €,22/24 rue Cavé 75018 Paris,"de 18 à 19 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/854
 CU Loucheur,"404,79 €",13 av. Loucheur 22000 Saint-Brieuc,"36,6 m² | Couple | 2 lits rapprochables | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1842
 Résidence La Bastide Rouge,"409,82 €",218 Avenue Francis Tonner - 06150 Cannes La Bocca,"19 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo, Micro-onde",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2756
 ERLEAK,"411,04 €",89 Rue Berrua 64210 BIDART,"de 18,85 à 22,09 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2881

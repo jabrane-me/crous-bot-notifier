@@ -1,7 +1,7 @@
 name,price,address,details,link
 CU MONPLAISIR,"153,7 €",rue Jacques Callot 54500 VANDOEUVRE LES NANCY,9 m² | Individuel | 1 lit simple | Frigo,https://trouverunlogement.lescrous.fr/tools/41/accommodations/1261
 CITE DE MENDE,"de 182,38 à 250,12 €",26 Avenue du 8 mai 1945 48000 Mende,"de 8,5 à 13 m² | Individuel | 1 lit simple | Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2715
-CITE TRIOLET,"de 211,46 à 216,49 €",75 Av. Augustin Fliche 34096 Montpellier Cedex 5,"de 10,37 à 12,36 m² | Individuel | 1 lit simple | Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/414
+CITE UNIVERSITAIRE ROBERTSAU,197 €,14 route de la Wantzenau 67085 STRASBOURG CEDEX,"9,75 m² | Individuel | 1 lit simple | Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/527
 RESIDENCE LA GARIDELLE,"de 220,51 à 327,52 €","10, rue St Bernard - 84000 AVIGNON","de 34,07 à 59,24 m² | Colocation | 2 lits simples | WC, Douche, Evier + plaque, Frigo, Duplex",https://trouverunlogement.lescrous.fr/tools/41/accommodations/630
 RESIDENCE BEGUINAGES,"de 228,51 à 229,62 €",23 rue des Béguinages 02100 ST QUENTIN,"de 31,94 à 32,52 m² | Colocation | 2 lits simples | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2251
 Résidence de Souilhac,"230,89 €",35 rue d'Arsonval 19000 TULLE,"57 m² | Colocation, Individuel | 2 lits simples | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1356
@@ -24,6 +24,7 @@ CHANEY,de 287 à 384 €,17 rue du Chaney 73000 Jacob Bellecombette,de 40 à 64 
 Résidence d'Egletons,"291,87 €",37 boulevard du Puy Nègre 19300 EGLETONS,"15 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2795
 RESIDENCE DU MADRILLET,"de 299,7 à 455,5 €","19, avenue de la Mare aux Daims 76800 SAINT ETIENNE DU ROUVRAY","de 25 à 33 m² | Individuel, Colocation, Couple | 2 lits rapprochables | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1440
 CU Loucheur,"311,9 €",13 av. Loucheur 22000 Saint-Brieuc,"21,6 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1828
+RESIDENCE SAINT CESAIRE,"de 311,33 à 401,56 €",258 Chemin du Moulin à Vent Quartier Saint Cesaire 30 000 Nîmes,"de 15,5 à 21,8 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2753
 LES COINCHETTES,313 €,21 Bis route de la Pomme 36100 ISSOUDUN,"30 m² | Colocation | 2 lits simples | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1632
 PATIO,"de 321,45 à 642,9 €",18 rue Combe des Dames 24000 PERIGUEUX,"34 m² | Individuel, Colocation, Couple | 2 lits rapprochables | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/482
 Résidence Rimbaud,"de 327,9 à 374,4 €",Avenue du 21ème siècle 21000 DIJON,"de 10 à 21 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1319
@@ -67,3 +68,4 @@ Résidence Olympie,"455,89 €",Avenue Descartes 62219 LONGUENESSE,"25 m² | Ind
 RESIDENCE MADGE SYERS,"458,16 €",1 Allée du Président Chirac 49100 ANGERS,"73,4 m² | Colocation | 3 lits simples | Pièce à vivre, WC, Douche, Evier + plaque, Frigo | Logement adaptéPMR",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2780
 CU LA BATELIERE,"548,52 €",7 à 15 route de Metz 54320 Maxéville,"de 23 à 28 m² | Couple, Individuel | 2 lits rapprochables | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/736
 CU BRIDOUX,"558,07 €",2 rue du Général Delestraint CS 15250 57076 METZ CEDEX 03,50 m² | Individuel | 2 lits rapprochables,https://trouverunlogement.lescrous.fr/tools/41/accommodations/2993
+RESIDENCE LES HOUBLONNIERES,de 679 à 702 €,5 rue Saint Charles 67300 SCHILTIGHEIM cu.robertsau@crous-strasbourg.fr,"de 46,13 à 48,71 m² | Couple, Individuel | 1 lit double | WC, Douche, Evier + plaque, Frigo, Duplex",https://trouverunlogement.lescrous.fr/tools/41/accommodations/3121

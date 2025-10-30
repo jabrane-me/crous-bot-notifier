@@ -1,5 +1,6 @@
 name,price,address,details,link
 CU MONPLAISIR,"186,71 €",rue Jacques Callot 54500 VANDOEUVRE LES NANCY,9 m² | Individuel | 1 lit simple | Frigo,https://trouverunlogement.lescrous.fr/tools/41/accommodations/1291
+RESIDENCE LES TROIS CLEFS D OR,"de 199,87 à 215,81 €","1, E Bd Paul Marieton - 84000 Avignon","de 28,36 à 33,74 m² | Colocation | 2 lits simples | WC, Douche, Evier + plaque, Frigo, Duplex",https://trouverunlogement.lescrous.fr/tools/41/accommodations/946
 FAURE,"de 216,5 à 268 €","341, rue des residences - domaine universitaire 38406 Saint-Martin d Heres",9 m² | Individuel | 1 lit simple | Frigo,https://trouverunlogement.lescrous.fr/tools/41/accommodations/100
 RESIDENCE LA GARIDELLE,"de 220,51 à 327,52 €","10, rue St Bernard - 84000 AVIGNON","de 34,07 à 59,24 m² | Colocation | 2 lits simples | WC, Douche, Evier + plaque, Frigo, Duplex",https://trouverunlogement.lescrous.fr/tools/41/accommodations/630
 Résidence de Souilhac,"230,89 €",35 rue d'Arsonval 19000 TULLE,"57 m² | Colocation, Individuel | 2 lits simples | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1356
@@ -23,7 +24,6 @@ RESIDENCE PUVIS,"292,2 €",29 rue Marguerite 69100 Villeurbanne,"de 9 à 11 m²
 DELAVIGNE,"de 295,7 à 591 €","A:43, B:45, C:47 , Rue Casimir Delavigne 76600 LE HAVRE","50 m² | Individuel, Colocation, Couple | 2 lits rapprochables | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1415
 BORNES,de 299 à 326 €,rue du lac de la Thuile 73370 Le BOURGET DU LAC,"de 16 à 23 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2442
 RESIDENCE DU MADRILLET,"de 299,7 à 455,5 €","19, avenue de la Mare aux Daims 76800 SAINT ETIENNE DU ROUVRAY","de 25 à 33 m² | Individuel, Colocation, Couple | 2 lits rapprochables | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1440
-OUEST,309 €,107 rue des Taillées - DOMAINE UNIVERSITAIRE 38400 SAINT MARTIN D HERES,12 m² | Individuel | 1 lit simple | Frigo,https://trouverunlogement.lescrous.fr/tools/41/accommodations/132
 CU Loucheur,"311,9 €",13 av. Loucheur 22000 Saint-Brieuc,"21,6 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1828
 LES COINCHETTES,313 €,21 Bis route de la Pomme 36100 ISSOUDUN,"30 m² | Colocation | 2 lits simples | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1632
 PATIO,"de 321,45 à 642,9 €",18 rue Combe des Dames 24000 PERIGUEUX,"34 m² | Individuel, Colocation, Couple | 2 lits rapprochables | Pièce à vivre, WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/482
@@ -42,7 +42,6 @@ FILAOS,368 €,1 rue colonel dumont - ILOT M 38000 GRENOBLE,"66 m² | Colocation
 MAISON DES ETUDIANTS,370 €,38 Rue de Montjoly 08000 CHARLEVILLE MEZIERES,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1567
 La GRAVIERE,370 €,36 Rue de la Gravière 08000 CHARLEVILLE-MEZIERES,"18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1491
 Résidence les Hauts de Vanteaux,"370,54 €",39A rue Camille Guérin 87038 LIMOGES CEDEX,"30 m² | Individuel | 1 lit rapprochable | Pièce à vivre, WC, Douche, Evier + plaque, Frigo, Balcon",https://trouverunlogement.lescrous.fr/tools/41/accommodations/1487
-CLACTON,372 €,20 RUE CLACTON TENDRING 26000 VALENCE,"de 23 à 32 m² | Individuel | 1 lit simple | Pièce à vivre, WC, Douche, Evier + plaque, Frigo, Duplex",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2508
 RESIDENCE VOLTA,"377,68 €","10, rue Lakanal 49000 ANGERS","18 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/600
 GODEHILDE,"388,5 €","7, rue du 7e Chasseur 27000 EVREUX","20 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/2018
 Résidence de Souilhac,"394,58 €",35 rue d'Arsonval 19000 TULLE,"26 m² | Individuel | 1 lit simple | WC, Douche, Evier + plaque, Frigo",https://trouverunlogement.lescrous.fr/tools/41/accommodations/6

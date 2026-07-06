@@ -1,27 +1,13 @@
 [
   {
-    "name": "Bordeaux",
+    "name": "TEST - Jabrane main CROUS page",
     "email_env": "TO_EMAIL",
-    "data_dir": "data/bordeaux",
-    "cities": ["Bordeaux", "Pessac", "Talence", "Mérignac"],
+    "data_dir": "data/test_jabrane_main",
+    "cities": ["France main CROUS test"],
     "urls": [
-      "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6386987_44.9161806_-0.5336838_44.8107826",
-      "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.7587897_44.8225797_-0.6029478_44.749435",
-      "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6111634_44.8252468_-0.5726706_44.7868187",
-      "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6471483_44.7938687_-0.5854508_44.7423986"
+      "https://trouverunlogement.lescrous.fr/tools/42/search"
     ],
-    "send_immediate_alert": true,
-    "send_daily_report": false
-  },
-  {
-    "name": "Friend target cities",
-    "email_env": "FRIEND_TO_EMAIL",
-    "data_dir": "data/friend",
-    "cities": ["Replace with friend's target cities"],
-    "urls": [
-      "https://trouverunlogement.lescrous.fr/tools/41/search"
-    ],
-    "send_immediate_alert": true,
+    "send_immediate_alert": false,
     "send_daily_report": false
   }
 ]

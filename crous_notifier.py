@@ -150,7 +150,6 @@ def parse_surface(details: str) -> tuple[str, str, str]:
     return surface_text, min_m2, max_m2
 
 
-
 def parse_housing_type(name: str, details: str) -> str:
     combined = f"{name} | {details}".lower()
     patterns = [
@@ -161,6 +160,7 @@ def parse_housing_type(name: str, details: str) -> str:
         ("Studio", r"\bstudio\b"),
         ("Chambre", r"\bchambre\b"),
         ("Colocation", r"\bcolocation\b"),
+        ("Individuel", r"\bindividuel\b"),
     ]
     for label, pattern in patterns:
         if re.search(pattern, combined):
@@ -184,6 +184,21 @@ def set_query_param(url: str, key: str, value: str) -> str:
     return urlunparse(parsed._replace(query=urlencode(query)))
 
 
+def extract_card_details(card) -> str:
+    """Extract CROUS card details from current and older markup.
+
+    The 2026 CROUS listing cards use <li class="fr-card__detail"> elements.
+    Older markup used <p class="fr-card__detail">, so select by class instead
+    of tag name to keep both formats working.
+    """
+    detail_elements = card.select(".fr-card__detail")
+    return " | ".join(
+        normalize_space(detail.get_text(" ", strip=True))
+        for detail in detail_elements
+        if normalize_space(detail.get_text(" ", strip=True))
+    )
+
+
 def card_to_residence(card, source_url: str, timestamp: str) -> dict[str, str] | None:
     title = card.find("h3", class_="fr-card__title")
     link_element = title.find("a") if title else None
@@ -192,9 +207,14 @@ def card_to_residence(card, source_url: str, timestamp: str) -> dict[str, str] |
 
     name = normalize_space(link_element.get_text(" ", strip=True))
     link = urljoin(BASE_URL, link_element.get("href", ""))
-    price_text = normalize_space(card.find("p", class_="fr-badge").get_text(" ", strip=True)) if card.find("p", class_="fr-badge") else ""
-    address = normalize_space(card.find("p", class_="fr-card__desc").get_text(" ", strip=True)) if card.find("p", class_="fr-card__desc") else ""
-    details = " | ".join(normalize_space(d.get_text(" ", strip=True)) for d in card.find_all("p", class_="fr-card__detail"))
+
+    price_element = card.select_one(".fr-badge")
+    price_text = normalize_space(price_element.get_text(" ", strip=True)) if price_element else ""
+
+    address_element = card.select_one(".fr-card__desc")
+    address = normalize_space(address_element.get_text(" ", strip=True)) if address_element else ""
+
+    details = extract_card_details(card)
     price_min, price_max = parse_price(price_text)
     surface_text, surface_min, surface_max = parse_surface(details)
     housing_type = parse_housing_type(name, details)

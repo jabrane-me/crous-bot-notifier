@@ -7,7 +7,7 @@
     "urls": [
       "https://trouverunlogement.lescrous.fr/tools/42/search"
     ],
-    "send_immediate_alert": false,
+    "send_immediate_alert": true,
     "send_daily_report": false
   }
 ]

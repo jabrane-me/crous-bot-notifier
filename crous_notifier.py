@@ -1,406 +1,510 @@
-# Final Crous Notifier Script
-# Re-architected to handle multiple, independently configured monitoring targets.
-# Includes both immediate change notifications AND a comprehensive daily summary report.
-# --- NOW WITH PAGINATION SUPPORT ---
+"""CROUS housing notifier.
+
+Scrapes one or more CROUS search URLs, stores clean CSV snapshots/history, and
+sends per-recipient alerts for their own target cities/searches.
+"""
+
+from __future__ import annotations
+
+import csv
+import hashlib
+import html
+import json
+import math
+import os
+import re
+import smtplib
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
+from email.header import Header
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from pathlib import Path
+from typing import Iterable
+from urllib.parse import parse_qsl, urlencode, urljoin, urlparse, urlunparse
 
 import requests
 from bs4 import BeautifulSoup
-import csv
-import os
-from datetime import datetime, timezone, timedelta
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.header import Header
-import pprint
-import math
-import re
 
-# --- Global Configuration ---
-# PRODUCTION: Email configuration is read from environment variables
-BREVO_LOGIN = os.environ.get("BREVO_LOGIN")
-BREVO_API_KEY = os.environ.get("BREVO_API_KEY") # Brevo's SMTP Key acts as the password
-TO_EMAIL = os.environ.get("TO_EMAIL")
-FROM_EMAIL = os.environ.get("FROM_EMAIL") # This must be a verified sender in your Brevo account
+BASE_URL = "https://trouverunlogement.lescrous.fr"
+CET = timezone(timedelta(hours=1), "CET")
+DEFAULT_TIMEOUT_SECONDS = 20
+RESULTS_PER_PAGE = 24
 SENDER_NAME = "CROUS BOT Notifier"
 
+BREVO_LOGIN = os.environ.get("BREVO_LOGIN")
+BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
+FROM_EMAIL = os.environ.get("FROM_EMAIL")
+
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+    ),
+    "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8",
 }
-CET = timezone(timedelta(hours=1))
 
-# --- Core Scraping and File Functions ---
+CURRENT_AVAILABLE_FILE = "current_available.csv"
+CHANGE_LOG_FILE = "availability_changes.csv"
+UNIQUE_HISTORY_FILE = "unique_residences.csv"
+RUN_LOG_FILE = "run_log.csv"
+REPORT_LOG_FILE = "daily_report_log.csv"
+LEGACY_AVAILABLE_FILE = "available_residences.csv"
+DEFAULT_CONFIG_FILE = "crous_targets.json"
 
-def scrape_crous_page(url):
-    """
-    Scrapes a Crous page and all its paginations, returning a single list of all residences.
-    """
-    all_residences = []
-    
-    try:
-        # --- MODIFIED: Fetch the original, unmodified URL first (this is page 1) ---
-        print(f"Fetching page 1 to determine total pages for: {url}")
-        response = requests.get(url, headers=HEADERS)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, 'html.parser')
+CSV_HEADERS = [
+    "residence_id",
+    "name",
+    "housing_type",
+    "price_text",
+    "price_min_eur",
+    "price_max_eur",
+    "surface_text",
+    "surface_min_m2",
+    "surface_max_m2",
+    "address",
+    "details",
+    "link",
+    "source_url",
+    "first_seen_cet",
+    "last_seen_cet",
+]
 
-        total_pages = 1
-        results_h2 = soup.find('h2', class_='SearchResults-desktop')
-        if results_h2:
-            results_text = results_h2.get_text()
-            match = re.search(r'(\d+)\s+logement', results_text)
-            if match:
-                total_residences = int(match.group(1))
-                # The website shows 24 residences per page
-                total_pages = math.ceil(total_residences / 24)
-                print(f"Found {total_residences} total residences across {int(total_pages)} page(s).")
-            else:
-                print("No residence count found in header. Assuming 1 page.")
-        else:
-            print("Could not find results header. Assuming 1 page.")
+CHANGE_HEADERS = ["timestamp_cet", "event", *CSV_HEADERS]
+UNIQUE_HEADERS = [*CSV_HEADERS, "last_event", "removed_at_cet", "seen_count"]
+RUN_LOG_HEADERS = [
+    "timestamp_cet",
+    "target_name",
+    "recipient_email",
+    "scraped_count",
+    "current_count",
+    "added_count",
+    "removed_count",
+    "status",
+    "message",
+]
 
-        # The first page's soup is already loaded, so we process it.
-        cards = soup.find_all('div', class_='fr-card')
-        for card in cards:
-            residence = {}
-            title_element = card.find('h3', class_='fr-card__title')
-            if title_element and title_element.find('a'):
-                residence['name'] = title_element.find('a').get_text(strip=True)
-                residence['link'] = "https://trouverunlogement.lescrous.fr" + title_element.find('a')['href']
-                residence['price'] = card.find('p', class_='fr-badge').get_text(strip=True) if card.find('p', class_='fr-badge') else 'N/A'
-                residence['address'] = card.find('p', class_='fr-card__desc').get_text(strip=True) if card.find('p', class_='fr-card__desc') else 'N/A'
-                details = card.find_all('p', class_='fr-card__detail')
-                residence['details'] = " | ".join([d.get_text(strip=True) for d in details])
-                all_residences.append(residence)
 
-        # Now, loop through the rest of the pages if they exist
-        if total_pages > 1:
-            # Clean any existing page param from the base URL to construct subsequent page URLs
-            base_url = re.sub(r'[?&]page=\d+', '', url)
-            
-            for page_num in range(2, int(total_pages) + 1):
-                page_url = base_url
-                if '?' in page_url:
-                    # Append with '&' if other parameters already exist
-                    if not page_url.endswith('&'): page_url += '&'
-                    page_url += f'page={page_num}'
-                else:
-                    # Append with '?' if it's the first parameter
-                    page_url += f'?page={page_num}'
-                
-                print(f"Fetching page {page_num}...")
-                response = requests.get(page_url, headers=HEADERS)
-                response.raise_for_status()
-                soup = BeautifulSoup(response.content, 'html.parser')
-                
-                page_cards = soup.find_all('div', class_='fr-card')
-                for card in page_cards:
-                    residence = {}
-                    title_element = card.find('h3', class_='fr-card__title')
-                    if title_element and title_element.find('a'):
-                        residence['name'] = title_element.find('a').get_text(strip=True)
-                        residence['link'] = "https://trouverunlogement.lescrous.fr" + title_element.find('a')['href']
-                        residence['price'] = card.find('p', class_='fr-badge').get_text(strip=True) if card.find('p', class_='fr-badge') else 'N/A'
-                        residence['address'] = card.find('p', class_='fr-card__desc').get_text(strip=True) if card.find('p', class_='fr-card__desc') else 'N/A'
-                        details = card.find_all('p', class_='fr-card__detail')
-                        residence['details'] = " | ".join([d.get_text(strip=True) for d in details])
-                        all_residences.append(residence)
-        
-        print(f"Total residences scraped from all pages: {len(all_residences)}")
-        return all_residences
+@dataclass(frozen=True)
+class RecipientTarget:
+    name: str
+    email: str
+    urls: list[str]
+    data_dir: Path
+    cities: list[str] = field(default_factory=list)
+    send_immediate_alert: bool = True
+    send_daily_report: bool = False
 
-    except requests.exceptions.RequestException as e:
-        print(f"Error during scraping process for {url}: {e}")
+
+def slugify(value: str) -> str:
+    value = re.sub(r"[^\w\s-]", "", value.lower(), flags=re.UNICODE)
+    return re.sub(r"[-\s]+", "_", value).strip("_") or "target"
+
+
+def now_cet() -> datetime:
+    return datetime.now(CET)
+
+
+def normalize_space(value: str) -> str:
+    return re.sub(r"\s+", " ", value or "").strip()
+
+
+def extract_numbers(text: str) -> list[float]:
+    values = []
+    for raw in re.findall(r"(?<![A-Za-z])\d+(?:[\s.]\d{3})*(?:[,.]\d+)?", text or ""):
+        normalized = raw.replace(" ", "").replace(".", "").replace(",", ".")
+        try:
+            values.append(float(normalized))
+        except ValueError:
+            continue
+    return values
+
+
+def format_float(value: float | None) -> str:
+    if value is None:
+        return ""
+    return str(int(value)) if value.is_integer() else f"{value:.2f}".rstrip("0").rstrip(".")
+
+
+def parse_range(text: str, unit_patterns: Iterable[str]) -> tuple[str, str]:
+    unit_regex = "|".join(unit_patterns)
+    if not re.search(unit_regex, text or "", flags=re.IGNORECASE):
+        return "", ""
+    numbers = extract_numbers(text)
+    if not numbers:
+        return "", ""
+    return format_float(min(numbers)), format_float(max(numbers))
+
+
+def parse_price(price_text: str) -> tuple[str, str]:
+    return parse_range(price_text, [r"€", r"eur", r"euro"])
+
+
+def parse_surface(details: str) -> tuple[str, str, str]:
+    surface_parts = []
+    for part in re.split(r"\s*\|\s*", details or ""):
+        if re.search(r"m\s*(?:²|2)|㎡", part, flags=re.IGNORECASE):
+            surface_parts.append(part)
+    surface_text = " | ".join(surface_parts)
+    min_m2, max_m2 = parse_range(surface_text, [r"m\s*(?:²|2)", r"㎡"])
+    return surface_text, min_m2, max_m2
+
+
+
+def parse_housing_type(name: str, details: str) -> str:
+    combined = f"{name} | {details}".lower()
+    patterns = [
+        ("T1 bis", r"\bt1\s*bis\b"),
+        ("T1", r"\bt1\b"),
+        ("T2", r"\bt2\b"),
+        ("T3", r"\bt3\b"),
+        ("Studio", r"\bstudio\b"),
+        ("Chambre", r"\bchambre\b"),
+        ("Colocation", r"\bcolocation\b"),
+    ]
+    for label, pattern in patterns:
+        if re.search(pattern, combined):
+            return label
+    return ""
+
+
+def residence_id(name: str, address: str, housing_type: str, price_text: str, surface_text: str, link: str) -> str:
+    stable_link = re.sub(r"[?#].*$", "", link or "").rstrip("/")
+    fingerprint = "|".join(
+        normalize_space(part).lower()
+        for part in [stable_link, name, address, housing_type, price_text, surface_text]
+    )
+    return hashlib.sha1(fingerprint.encode("utf-8")).hexdigest()[:16]
+
+
+def set_query_param(url: str, key: str, value: str) -> str:
+    parsed = urlparse(url)
+    query = dict(parse_qsl(parsed.query, keep_blank_values=True))
+    query[key] = value
+    return urlunparse(parsed._replace(query=urlencode(query)))
+
+
+def card_to_residence(card, source_url: str, timestamp: str) -> dict[str, str] | None:
+    title = card.find("h3", class_="fr-card__title")
+    link_element = title.find("a") if title else None
+    if not link_element:
         return None
 
-def read_csv_to_list(filepath):
-    """Reads a CSV file into a list of dictionaries."""
-    if not os.path.exists(filepath): return []
-    with open(filepath, mode='r', newline='', encoding='utf-8') as f:
-        return [row for row in csv.DictReader(f)]
+    name = normalize_space(link_element.get_text(" ", strip=True))
+    link = urljoin(BASE_URL, link_element.get("href", ""))
+    price_text = normalize_space(card.find("p", class_="fr-badge").get_text(" ", strip=True)) if card.find("p", class_="fr-badge") else ""
+    address = normalize_space(card.find("p", class_="fr-card__desc").get_text(" ", strip=True)) if card.find("p", class_="fr-card__desc") else ""
+    details = " | ".join(normalize_space(d.get_text(" ", strip=True)) for d in card.find_all("p", class_="fr-card__detail"))
+    price_min, price_max = parse_price(price_text)
+    surface_text, surface_min, surface_max = parse_surface(details)
+    housing_type = parse_housing_type(name, details)
+    rid = residence_id(name, address, housing_type, price_text, surface_text, link)
 
-def write_list_to_csv(filepath, data_list, headers):
-    """Writes a list of dictionaries to a CSV file."""
-    with open(filepath, mode='w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=headers)
-        writer.writeheader()
-        writer.writerows(data_list)
+    return {
+        "residence_id": rid,
+        "name": name,
+        "housing_type": housing_type,
+        "price_text": price_text,
+        "price_min_eur": price_min,
+        "price_max_eur": price_max,
+        "surface_text": surface_text,
+        "surface_min_m2": surface_min,
+        "surface_max_m2": surface_max,
+        "address": address,
+        "details": details,
+        "link": link,
+        "source_url": source_url,
+        "first_seen_cet": timestamp,
+        "last_seen_cet": timestamp,
+    }
 
-def append_list_to_csv(filepath, data_list, headers):
-    """Appends a list of dictionaries to a CSV file."""
-    file_exists = os.path.exists(filepath)
-    with open(filepath, mode='a', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=headers)
-        if not file_exists: writer.writeheader()
-        writer.writerows(data_list)
 
-def make_dict_hashable(d):
-    """Converts a dictionary to a hashable frozenset for comparison."""
-    return frozenset(d.items())
-
-def get_price_as_int(residence):
-    """Extracts the integer value from a price string, handling various formats."""
-    price_str = residence.get('price', '0')
+def scrape_crous_page(url: str, timestamp: str) -> list[dict[str, str]] | None:
+    residences: list[dict[str, str]] = []
+    session = requests.Session()
     try:
-        price_clean = price_str.replace('€', '').strip()
-        if 'à' in price_clean:
-            price_clean = price_clean.split('à')[0].strip()
-        price_clean = ''.join(filter(lambda x: x.isdigit() or x in [',', '.'], price_clean))
-        price_clean = price_clean.replace(',', '.')
-        return int(float(price_clean))
-    except (ValueError, TypeError, AttributeError):
-        print(f"Warning: Could not parse price '{price_str}', sorting to end")
-        return 9999
+        response = session.get(url, headers=HEADERS, timeout=DEFAULT_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.content, "html.parser")
+        total_pages = 1
+        header = soup.find("h2", class_="SearchResults-desktop")
+        if header:
+            count_match = re.search(r"(\d+)\s+logement", header.get_text(" ", strip=True))
+            if count_match:
+                total_pages = max(1, math.ceil(int(count_match.group(1)) / RESULTS_PER_PAGE))
+        print(f"{url}: scraping {total_pages} page(s)")
 
-def plural(n, singular, plural_form):
-    """Returns the singular or plural form of a word based on the count n."""
-    return singular if n == 1 else plural_form
+        for page_num in range(1, total_pages + 1):
+            page_soup = soup
+            page_url = url
+            if page_num > 1:
+                page_url = set_query_param(url, "page", str(page_num))
+                page_response = session.get(page_url, headers=HEADERS, timeout=DEFAULT_TIMEOUT_SECONDS)
+                page_response.raise_for_status()
+                page_soup = BeautifulSoup(page_response.content, "html.parser")
+            for card in page_soup.find_all("div", class_="fr-card"):
+                residence = card_to_residence(card, page_url, timestamp)
+                if residence:
+                    residences.append(residence)
+        return residences
+    except requests.RequestException as exc:
+        print(f"Scrape failed for {url}: {exc}")
+        return None
 
-# --- Email and Reporting Functions ---
 
-def format_residence_html(residence, color="black"):
-    """Formats a single residence into an HTML block."""
+def read_csv(path: Path) -> list[dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open(newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
+
+
+def write_csv(path: Path, rows: list[dict[str, str]], headers: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=headers, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def append_csv(path: Path, rows: list[dict[str, str]], headers: list[str]) -> None:
+    if not rows:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    file_exists = path.exists()
+    with path.open("a", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=headers, extrasaction="ignore")
+        if not file_exists:
+            writer.writeheader()
+        writer.writerows(rows)
+
+
+def sort_key(residence: dict[str, str]) -> tuple[float, str]:
+    try:
+        price = float(residence.get("price_min_eur") or 999999)
+    except ValueError:
+        price = 999999
+    return price, residence.get("name", "")
+
+
+def merge_duplicates(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    merged: dict[str, dict[str, str]] = {}
+    for row in rows:
+        rid = row["residence_id"]
+        if rid not in merged:
+            merged[rid] = row
+            continue
+        existing_sources = set(filter(None, merged[rid].get("source_url", "").split(" | ")))
+        existing_sources.add(row.get("source_url", ""))
+        merged[rid]["source_url"] = " | ".join(sorted(existing_sources))
+    return sorted(merged.values(), key=sort_key)
+
+
+def migrate_previous_snapshot(data_dir: Path) -> None:
+    current = data_dir / CURRENT_AVAILABLE_FILE
+    legacy = data_dir / LEGACY_AVAILABLE_FILE
+    if current.exists() or not legacy.exists():
+        return
+    migrated = []
+    timestamp = now_cet().isoformat(timespec="seconds")
+    for row in read_csv(legacy):
+        price_min, price_max = parse_price(row.get("price", ""))
+        surface_text, surface_min, surface_max = parse_surface(row.get("details", ""))
+        housing_type = parse_housing_type(row.get("name", ""), row.get("details", ""))
+        migrated.append({
+            "residence_id": residence_id(row.get("name", ""), row.get("address", ""), housing_type, row.get("price", ""), surface_text, row.get("link", "")),
+            "name": row.get("name", ""),
+            "housing_type": housing_type,
+            "price_text": row.get("price", ""),
+            "price_min_eur": price_min,
+            "price_max_eur": price_max,
+            "surface_text": surface_text,
+            "surface_min_m2": surface_min,
+            "surface_max_m2": surface_max,
+            "address": row.get("address", ""),
+            "details": row.get("details", ""),
+            "link": row.get("link", ""),
+            "source_url": "legacy_csv",
+            "first_seen_cet": timestamp,
+            "last_seen_cet": timestamp,
+        })
+    write_csv(current, migrated, CSV_HEADERS)
+
+
+def format_residence_html(residence: dict[str, str], color: str = "#111") -> str:
+    price = residence.get("price_text") or "Prix non indiqué"
+    surface = f" · {html.escape(residence['surface_text'])}" if residence.get("surface_text") else ""
+    housing_type = f" · {html.escape(residence['housing_type'])}" if residence.get("housing_type") else ""
     return f"""
-    <div style="border-left: 3px solid {color}; padding-left: 15px; margin-bottom: 20px;">
-        <p style="margin:0; font-size: 18px; font-weight: bold;">
-            <a href="{residence['link']}" style="color: {color}; text-decoration: none;">{residence['name']}</a>
-        </p>
-        <p style="margin:0; font-size: 16px; color: #333;"><b>Prix:</b> {residence['price']}</p>
-        <p style="margin:0; font-size: 14px; color: #555;">{residence['address']}</p>
-        <p style="margin:0; font-size: 14px; color: #555;"><i>{residence['details']}</i></p>
+    <div style="border-left:3px solid {color};padding-left:14px;margin:0 0 18px 0">
+      <p style="margin:0;font-size:17px;font-weight:700"><a href="{html.escape(residence['link'])}" style="color:{color};text-decoration:none">{html.escape(residence['name'])}</a></p>
+      <p style="margin:3px 0;color:#333"><b>{html.escape(price)}</b>{housing_type}{surface}</p>
+      <p style="margin:3px 0;color:#555">{html.escape(residence.get('address', ''))}</p>
+      <p style="margin:3px 0;color:#666;font-size:13px">ID: {html.escape(residence['residence_id'])}</p>
     </div>
     """
 
-def create_alert_email_body(title, added, removed, all_available):
-    """Builds the HTML for an immediate alert email (changes first)."""
-    html = f"""
-    <html><head><style>body {{font-family: Arial, sans-serif; color: #333;}}</style></head>
-    <body style="margin: 0; padding: 0;">
-    <div style="max-width: 700px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
-        <h1 style="font-size: 24px; color: #00549F; border-bottom: 2px solid #eee; padding-bottom: 10px;">{title}</h1>"""
+
+def create_email_body(target: RecipientTarget, added: list[dict[str, str]], removed: list[dict[str, str]], current: list[dict[str, str]]) -> str:
+    title = f"CROUS — {html.escape(target.name)}"
+    body = f"<html><body style='font-family:Arial,sans-serif;color:#222'><div style='max-width:760px;margin:auto'><h1>{title}</h1>"
     if added:
-        html += f'<h2 style="font-size: 20px; color: #28a745;">Nouvelles résidences disponibles ({len(added)})</h2>'
-        for res in added: html += format_residence_html(res, color="#28a745")
+        body += f"<h2 style='color:#198754'>Nouveaux logements ({len(added)})</h2>"
+        body += "".join(format_residence_html(row, "#198754") for row in added)
     if removed:
-        html += f'<h2 style="font-size: 20px; color: #dc3545;">Résidences qui ne sont plus listées ({len(removed)})</h2>'
-        for res in removed: html += format_residence_html(res, color="#dc3545")
-    
-    html += f'<h2 style="font-size: 20px; border-top: 2px solid #eee; padding-top: 20px;">Liste complète des résidences disponibles ({len(all_available)})</h2>'
-    if all_available:
-        for res in all_available: html += format_residence_html(res)
-    else:
-        html += "<p>Il n'y a actuellement aucune résidence disponible.</p>"
-    html += "</div></body></html>"
-    return html
+        body += f"<h2 style='color:#dc3545'>Logements disparus ({len(removed)})</h2>"
+        body += "".join(format_residence_html(row, "#dc3545") for row in removed)
+    body += f"<h2>Disponibles maintenant ({len(current)})</h2>"
+    body += "".join(format_residence_html(row) for row in current) if current else "<p>Aucun logement disponible.</p>"
+    return body + "</div></body></html>"
 
-def create_summary_email_body(title, added, removed, all_available):
-    """Builds the HTML for the daily summary email (full list first)."""
-    html = f"""
-    <html><head><style>body {{font-family: Arial, sans-serif; color: #333;}}</style></head>
-    <body style="margin: 0; padding: 0;">
-    <div style="max-width: 700px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9;">
-        <h1 style="font-size: 24px; color: #00549F; border-bottom: 2px solid #eee; padding-bottom: 10px;">{title}</h1>"""
-    
-    html += f'<h2 style="font-size: 20px;">Liste complète des résidences disponibles en fin de journée ({len(all_available)})</h2>'
-    if all_available:
-        for res in all_available: html += format_residence_html(res)
-    else:
-        html += "<p>Il n'y a actuellement aucune résidence disponible.</p>"
 
-    if not added and not removed:
-        html += '<p style="font-size: 16px; border-top: 2px solid #eee; margin-top: 20px; padding-top: 20px;">Aucun changement de disponibilité n\'a été détecté aujourd\'hui.</p>'
-    if added:
-        html += f'<h2 style="font-size: 20px; color: #28a745; border-top: 2px solid #eee; margin-top: 20px; padding-top: 20px;">Ajouté(s) aujourd\'hui ({len(added)})</h2>'
-        for res in added: html += format_residence_html(res, color="#28a745")
-    if removed:
-        html += f'<h2 style="font-size: 20px; color: #dc3545; border-top: 2px solid #eee; margin-top: 20px; padding-top: 20px;">Retiré(s) aujourd\'hui ({len(removed)})</h2>'
-        for res in removed: html += format_residence_html(res, color="#dc3545")
+def send_email(to_email: str, subject: str, html_body: str) -> bool:
+    if not all([BREVO_LOGIN, BREVO_API_KEY, FROM_EMAIL, to_email]):
+        print("Email credentials or recipient missing; skipping email.")
+        return False
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = Header(subject, "utf-8")
+    msg["From"] = f"{SENDER_NAME} <{FROM_EMAIL}>"
+    msg["To"] = to_email
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    with smtplib.SMTP("smtp-relay.brevo.com", 587, timeout=DEFAULT_TIMEOUT_SECONDS) as server:
+        server.starttls()
+        server.login(BREVO_LOGIN, BREVO_API_KEY)
+        server.sendmail(FROM_EMAIL, [to_email], msg.as_string())
+    print(f"Sent email to {to_email}: {subject}")
+    return True
 
-    html += "</div></body></html>"
-    return html
 
-def send_email(subject, html_body):
-    """Sends the email using Brevo's SMTP."""
-    if not all([BREVO_LOGIN, BREVO_API_KEY, TO_EMAIL, FROM_EMAIL]):
-        print("Email credentials not found. Cannot send email.")
+def update_unique_history(data_dir: Path, current: list[dict[str, str]], added: list[dict[str, str]], removed: list[dict[str, str]], timestamp: str) -> None:
+    history_path = data_dir / UNIQUE_HISTORY_FILE
+    history = {row["residence_id"]: row for row in read_csv(history_path)}
+    added_ids = {row["residence_id"] for row in added}
+    removed_ids = {row["residence_id"] for row in removed}
+    for row in current:
+        previous = history.get(row["residence_id"], {})
+        merged = {**row}
+        merged["first_seen_cet"] = previous.get("first_seen_cet") or row["first_seen_cet"]
+        merged["last_seen_cet"] = timestamp
+        merged["last_event"] = "added" if row["residence_id"] in added_ids else previous.get("last_event", "seen")
+        merged["removed_at_cet"] = ""
+        merged["seen_count"] = str(int(previous.get("seen_count") or 0) + 1)
+        history[row["residence_id"]] = merged
+    for row in removed:
+        previous = history.get(row["residence_id"], row)
+        previous.update(row)
+        previous["last_event"] = "removed"
+        previous["removed_at_cet"] = timestamp
+        previous["seen_count"] = previous.get("seen_count") or "1"
+        history[row["residence_id"]] = previous
+    write_csv(history_path, sorted(history.values(), key=sort_key), UNIQUE_HEADERS)
+
+
+def process_target(target: RecipientTarget) -> None:
+    timestamp = now_cet().isoformat(timespec="seconds")
+    target.data_dir.mkdir(parents=True, exist_ok=True)
+    migrate_previous_snapshot(target.data_dir)
+    snapshot_path = target.data_dir / CURRENT_AVAILABLE_FILE
+    previous = {row["residence_id"]: row for row in read_csv(snapshot_path)}
+
+    scraped: list[dict[str, str]] = []
+    failed_urls = []
+    for url in target.urls:
+        rows = scrape_crous_page(url, timestamp)
+        if rows is None:
+            failed_urls.append(url)
+        else:
+            scraped.extend(rows)
+
+    if failed_urls and not scraped:
+        append_csv(target.data_dir / RUN_LOG_FILE, [{
+            "timestamp_cet": timestamp,
+            "target_name": target.name,
+            "recipient_email": target.email,
+            "scraped_count": "0",
+            "current_count": str(len(previous)),
+            "added_count": "0",
+            "removed_count": "0",
+            "status": "error",
+            "message": f"All scrapes failed: {'; '.join(failed_urls)}",
+        }], RUN_LOG_HEADERS)
         return
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = Header(subject, 'utf-8')
-    msg['From'] = f"{SENDER_NAME} <{FROM_EMAIL}>"
-    msg['To'] = TO_EMAIL
-    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
-    try:
-        with smtplib.SMTP("smtp-relay.brevo.com", 587) as server:
-            server.starttls()
-            server.login(BREVO_LOGIN, BREVO_API_KEY)
-            server.sendmail(FROM_EMAIL, TO_EMAIL, msg.as_string())
-        print(f"Email with subject '{subject}' sent successfully!")
-    except Exception as e:
-        print(f"Failed to send email: {e}")
 
-# --- Main processing function for a single target ---
-def process_target(target_config):
-    """
-    Runs the entire notification logic for a single configured target URL.
-    """
-    url = target_config["url"]
-    folder = target_config["folder_name"]
-    send_alert = target_config["send_immediate_alert"]
-    send_summary = target_config["send_daily_report"]
-    
-    if folder != ".":
-        os.makedirs(folder, exist_ok=True)
+    current = merge_duplicates(scraped)
+    for row in current:
+        if row["residence_id"] in previous:
+            row["first_seen_cet"] = previous[row["residence_id"]].get("first_seen_cet") or row["first_seen_cet"]
 
-    available_csv = os.path.join(folder, 'available_residences.csv')
-    removed_log_csv = os.path.join(folder, 'removed_residences.log.csv')
-    activity_log_csv = os.path.join(folder, 'daily_activity_log.csv')
-    report_log_csv = os.path.join(folder, 'daily_report_log.csv')
+    current_by_id = {row["residence_id"]: row for row in current}
+    added = sorted([row for rid, row in current_by_id.items() if rid not in previous], key=sort_key)
+    removed = sorted([row for rid, row in previous.items() if rid not in current_by_id], key=sort_key)
 
-    now_cet = datetime.now(CET)
-    today_str = now_cet.strftime('%Y-%m-%d')
-    
-    # --- Part 1: Immediate Change Detection and Notification ---
-    print(f"--- Running Hourly Change Detection for '{folder}' ---")
-    # current_residences = scrape_crous_page(url)
+    change_rows = [{"timestamp_cet": timestamp, "event": "added", **row} for row in added]
+    change_rows.extend({"timestamp_cet": timestamp, "event": "removed", **row} for row in removed)
+    append_csv(target.data_dir / CHANGE_LOG_FILE, change_rows, CHANGE_HEADERS)
+    update_unique_history(target.data_dir, current, added, removed, timestamp)
+    write_csv(snapshot_path, current, CSV_HEADERS)
 
-    # --- MODIFIED: Handle single URL or list of URLs ---
-    urls_to_scrape = []
-    if isinstance(url, list):
-        urls_to_scrape.extend(url)
-    else:
-        urls_to_scrape.append(url)
+    if (added or removed) and target.send_immediate_alert:
+        subject = f"CROUS {target.name}: +{len(added)} / -{len(removed)} logements"
+        try:
+            send_email(target.email, subject, create_email_body(target, added, removed, current))
+        except Exception as exc:
+            print(f"Failed to send email to {target.email}: {exc}")
 
-    all_scraped_residences = []
-    for ur in urls_to_scrape:
-        scraped_data = scrape_crous_page(ur)
-        if scraped_data:
-            all_scraped_residences.extend(scraped_data)
-
-    unique_residences_dict = {res['link']: res for res in all_scraped_residences}
-    current_residences = list(unique_residences_dict.values())
-    print(f"Found a total of {len(current_residences)} unique residences for '{folder}'.")
-
-    if current_residences is not None:
-        previous_residences = read_csv_to_list(available_csv)
-        current_set = {make_dict_hashable(d) for d in current_residences}
-        previous_set = {make_dict_hashable(d) for d in previous_residences}
-
-        if current_set != previous_set:
-            print("Change detected!")
-            added_list = [dict(h) for h in (current_set - previous_set)]
-            removed_list = [dict(h) for h in (previous_set - current_set)]
-
-            added_list.sort(key=get_price_as_int)
-            removed_list.sort(key=get_price_as_int)
-            current_residences.sort(key=get_price_as_int)
-
-            if send_alert:
-                num_added = len(added_list)
-                num_removed = len(removed_list)
-                subject = f"Alerte CROUS Bot ({folder}): Changement de disponibilité !"
-                if num_added > 0 and num_removed > 0:
-                    added_str = f"+{num_added} {plural(num_added, 'ajoutée', 'ajoutées')}"
-                    removed_str = f"-{num_removed} {plural(num_removed, 'retirée', 'retirées')}"
-                    subject = f"Alerte CROUS Bot {folder} : {added_str}, {removed_str}"
-                elif num_added > 0:
-                    subject = f"Alerte CROUS Bot (+ {folder}): {num_added} nouvelle{plural(num_added, '', 's')} résidence{plural(num_added, '', 's')} disponible{plural(num_added, '', 's')} !"
-                elif num_removed > 0:
-                    subject = f"Alerte CROUS Bot (- {folder}): {num_removed} résidence{plural(num_removed, '', 's')} {plural(num_removed, 'n’est', 'ne sont')} plus disponible{plural(num_removed, '', 's')}"
-                
-                email_body = create_alert_email_body("Changement de disponibilité !", added_list, removed_list, current_residences)
-                send_email(subject, email_body)
-            else:
-                print("Immediate alert is disabled for this target. Skipping email.")
-
-            activity_log_headers = ['timestamp_cet', 'status', 'name', 'price', 'address', 'details', 'link']
-            activity_to_log = []
-            for item in added_list:
-                log_item = item.copy()
-                log_item.update({'timestamp_cet': now_cet.isoformat(), 'status': 'added'})
-                activity_to_log.append(log_item)
-            for item in removed_list:
-                log_item = item.copy()
-                log_item.update({'timestamp_cet': now_cet.isoformat(), 'status': 'removed'})
-                activity_to_log.append(log_item)
-            if activity_to_log:
-                append_list_to_csv(activity_log_csv, activity_to_log, activity_log_headers)
-
-            headers = ['name', 'price', 'address', 'details', 'link']
-            write_list_to_csv(available_csv, current_residences, headers)
-            
-            if removed_list:
-                timestamp = now_cet.strftime("%Y-%m-%d %H:%M:%S %Z")
-                for item in removed_list:
-                    item['removed_timestamp'] = timestamp
-                removed_headers = headers + ['removed_timestamp']
-                append_list_to_csv(removed_log_csv, removed_list, removed_headers)
-        else:
-            print("No changes detected since last run.")
-
-    # --- Part 2: Comprehensive Daily Summary Report ---
-    print(f"\n--- Checking for Daily Summary Report for '{folder}' ---")
-    is_report_time = (now_cet.hour == 23 and now_cet.minute >= 30) and (now_cet.hour == 23 and now_cet.minute <= 59)
-    report_log = read_csv_to_list(report_log_csv)
-    sent_today = any(log.get('sent_date') == today_str for log in report_log)
-
-    if is_report_time and not sent_today and send_summary:
-        print(f"It's daily report time in CET and report is enabled. Generating summary...")
-        
-        full_activity_log = read_csv_to_list(activity_log_csv)
-        today_activity = [row for row in full_activity_log if row.get('timestamp_cet', '').startswith(today_str)]
-        total_added_today = [row for row in today_activity if row.get('status') == 'added']
-        total_removed_today = [row for row in today_activity if row.get('status') == 'removed']
-
-        # --- MODIFIED: Handle single URL or list of URLs ---
-
-        final_residences = current_residences
-        if final_residences is None:
-            final_residences = read_csv_to_list(available_csv)
-
-        total_added_today.sort(key=get_price_as_int)
-        total_removed_today.sort(key=get_price_as_int)
-        final_residences.sort(key=get_price_as_int)
-
-        subject = f"Rapport CROUS Bot du {today_str} ({folder})"
-        email_body = create_summary_email_body(f"Rapport du {today_str} ({folder})", total_added_today, total_removed_today, final_residences)
-        send_email(subject, email_body)
-        
-        log_entry = [{'sent_date': today_str, 'sent_time_cet': now_cet.strftime('%H:%M:%S')}]
-        append_list_to_csv(report_log_csv, log_entry, headers=['sent_date', 'sent_time_cet'])
-    else:
-        if is_report_time and not send_summary:
-            print("It's report time, but daily summary is disabled for this target.")
-        elif is_report_time and sent_today:
-            print("It's daily report time, but the summary has already been sent today for this target.")
-        else:
-            print(f"Not currently in the daily report window ({now_cet.strftime('%H:%M:%S')} CET).")
-             
-    print(f"\nProcessing for '{folder}' finished.")
+    append_csv(target.data_dir / RUN_LOG_FILE, [{
+        "timestamp_cet": timestamp,
+        "target_name": target.name,
+        "recipient_email": target.email,
+        "scraped_count": str(len(scraped)),
+        "current_count": str(len(current)),
+        "added_count": str(len(added)),
+        "removed_count": str(len(removed)),
+        "status": "ok" if not failed_urls else "partial",
+        "message": "; ".join(failed_urls),
+    }], RUN_LOG_HEADERS)
+    print(f"{target.name}: {len(current)} current, +{len(added)}, -{len(removed)}")
 
 
-# --- Main Execution Block ---
-if __name__ == "__main__":
-    # --- Define all monitoring targets here ---
-    TARGETS_TO_MONITOR = [
-        {
-            "url": "https://trouverunlogement.lescrous.fr/tools/41/search",
-            "folder_name": ".",
-            "send_immediate_alert": False,
-            "send_daily_report": False
-        },
-        {
-            "url": [
-                "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6386987_44.9161806_-0.5336838_44.8107826",
-                "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.7587897_44.8225797_-0.6029478_44.749435",
-                "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6111634_44.8252468_-0.5726706_44.7868187",
-                "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6471483_44.7938687_-0.5854508_44.7423986"
-            ],
-            "folder_name": "bordeaux_data",
-            "send_immediate_alert": False,
-            "send_daily_report": False
-        }
-    ]
+def load_targets(config_path: Path | None = None) -> list[RecipientTarget]:
+    path = config_path or Path(os.environ.get("TARGETS_CONFIG_PATH", DEFAULT_CONFIG_FILE))
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Missing target config file: {path}. Copy/edit crous_targets.json or set TARGETS_CONFIG_PATH."
+        )
 
-    # Loop through each target and process it
-    for target in TARGETS_TO_MONITOR:
+    with path.open(encoding="utf-8") as handle:
+        configs = json.load(handle)
+
+    targets = []
+    for config in configs:
+        name = config["name"]
+        email = config.get("email", "")
+        email_env = config.get("email_env")
+        if email_env:
+            email = os.environ.get(email_env, email)
+        urls = config.get("urls") or [config["url"]]
+        data_dir = Path(config.get("data_dir") or f"data/{slugify(name)}")
+        targets.append(RecipientTarget(
+            name=name,
+            email=email,
+            urls=urls,
+            data_dir=data_dir,
+            cities=config.get("cities", []),
+            send_immediate_alert=bool(config.get("send_immediate_alert", True)),
+            send_daily_report=bool(config.get("send_daily_report", False)),
+        ))
+    return targets
+
+
+def main() -> None:
+    targets = load_targets()
+    for target in targets:
+        if not target.email:
+            print(f"Skipping {target.name}: no recipient email configured.")
+            continue
         process_target(target)
+
+
+if __name__ == "__main__":
+    main()

@@ -41,8 +41,8 @@ jobs:
         env:
           BREVO_LOGIN: ${{ secrets.BREVO_LOGIN }}
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
-          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          FRIEND_TO_EMAIL: ${{ secrets.FRIEND_TO_EMAIL }}
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
         run: python crous_notifier.py
 

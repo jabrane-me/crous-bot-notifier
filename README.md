@@ -1,64 +1,87 @@
 # CROUS Housing Notifier Bot
 
-GitHub Actions bot for monitoring CROUS housing search pages. It stores per-target CSV state, sends immediate email alerts for listing changes, and sends one daily report per target during a configured time window.
+A free-tier CROUS housing notifier that runs on GitHub Actions, sends email through Brevo SMTP, and can be triggered reliably by cron-job.org. It monitors one or more CROUS search URLs, stores CSV state per target, sends immediate alerts when listings change, and sends at most one daily report per target.
 
-## Production Configuration
+## Free-Tier Architecture
 
-`crous_targets.json` contains the production targets:
+This project is designed to run without a paid server:
 
-| Target | Email secret | Data folder | Cities | Search |
-| --- | --- | --- | --- | --- |
-| Bordeaux | `TO_EMAIL` | `data/bordeaux` | Bordeaux, Pessac, Talence, Mérignac | `/tools/43` bounds search |
-| Strasbourg | `FRIEND_TO_EMAIL` | `data/strasbourg` | Strasbourg, Illkirch-Graffenstaden, Schiltigheim | `/tools/43` bounds search |
+| Service | Purpose |
+| --- | --- |
+| GitHub repository | Stores the bot code, target config, workflow, and per-target CSV state. |
+| GitHub Actions | Runs the scraper and commits updated CSV state. |
+| cron-job.org | Triggers the workflow on a regular schedule with `workflow_dispatch`. |
+| Brevo SMTP | Sends immediate alert emails and daily report emails. |
 
-Each target enables immediate alerts and daily reports:
+## Configure Targets
+
+Targets are configured in `crous_targets.json`. Each target has its own label, recipient secret, data folder, CROUS URL list, alert/report flags, and daily report window.
+
+```json
+[
+  {
+    "name": "Target label",
+    "email_env": "TO_EMAIL",
+    "data_dir": "data/target_label",
+    "cities": ["City 1", "City 2"],
+    "urls": [
+      "https://trouverunlogement.lescrous.fr/tools/43/search?bounds=..."
+    ],
+    "send_immediate_alert": true,
+    "send_daily_report": true,
+    "daily_report_time_window": {
+      "start": "23:30",
+      "end": "00:00"
+    }
+  }
+]
+```
+
+Use exact CROUS search URLs copied from the website. The bot supports multiple targets and multiple URLs per target.
+
+## Daily Reports
+
+Daily reports are evaluated per target. A report is sent only when:
+
+- `send_daily_report` is `true`
+- the current CET time is inside that target's `daily_report_time_window`
+- that target's `daily_report_log.csv` does not already contain today's `sent_date`
+
+`daily_report_time_window` uses `HH:MM` values:
 
 ```json
 {
-  "send_immediate_alert": true,
-  "send_daily_report": true,
-  "daily_report_time_window": {
-    "start": "23:30",
-    "end": "00:00"
-  }
+  "start": "23:30",
+  "end": "00:00"
 }
 ```
 
-The report window is configured per target, so recipients can use different daily report times.
+The example window means reports are eligible from 23:30 up to, but not including, 00:00 CET. Windows can differ per target.
 
-## Persisted CSV State
+## Immediate Alerts
 
-CSV files inside each target folder are bot state and should be committed:
+Immediate alerts are sent when listings are added or removed for a target and `send_immediate_alert` is `true`.
+
+Subject format:
+
+```text
+CROUS Target label: +2 / -0 logements
+```
+
+Email bodies include price, listing details, address, and link. Internal residence IDs are not shown to recipients.
+
+## CSV State
+
+CSV files inside each target's `data_dir` are bot state and should be committed:
 
 | File | Purpose |
 | --- | --- |
 | `current_available.csv` | Latest snapshot used to detect additions and removals. |
-| `availability_changes.csv` | Add/remove event history for the target. |
-| `unique_residences.csv` | Historical catalog of listings seen for the target. |
-| `daily_report_log.csv` | Minimal daily report marker: `sent_date,sent_time_cet`. |
+| `availability_changes.csv` | Add/remove event record for the target. |
+| `unique_residences.csv` | Catalog of unique listings seen for the target. |
+| `daily_report_log.csv` | Minimal report marker: `sent_date,sent_time_cet`. |
 
-Root-level generated CSV files from old versions should not be committed. The old empty `data/test_jabrane_main/` output is also ignored.
-
-## Alerts And Reports
-
-Immediate alert subjects use clean target labels:
-
-```text
-CROUS Bordeaux: +2 / -0 logements
-CROUS Strasbourg: +1 / -0 logements
-```
-
-Daily reports are sent once per target per CET day when:
-
-- `send_daily_report` is `true`
-- the current CET time is inside that target's `daily_report_time_window`
-- `daily_report_log.csv` does not already contain today's `sent_date`
-
-For the default window, reports are eligible from 23:30 up to, but not including, 00:00 CET.
-
-The workflow uses GitHub Actions `concurrency` so frequent cron-job.org dispatches queue instead of overlapping. Each queued run checks out the latest committed target CSVs before deciding whether a daily report has already been sent.
-
-## CSV Columns
+Generated root-level CSV files from old versions should not be committed.
 
 Generated listing CSVs use this column order:
 
@@ -68,6 +91,30 @@ residence_id, name, housing_type, price_text, price_min_eur, price_max_eur, surf
 
 If a price or surface has only one number, the value is written to the `min` column and the matching `max` column stays empty.
 
+## GitHub Secrets
+
+Create these repository secrets in **Settings -> Secrets and variables -> Actions**:
+
+| Secret | Value |
+| --- | --- |
+| `BREVO_LOGIN` | Brevo SMTP login. |
+| `BREVO_API_KEY` | Brevo SMTP key/password. |
+| `FROM_EMAIL` | Verified Brevo sender email. |
+| `TO_EMAIL` | Recipient email for any target using `email_env: "TO_EMAIL"`. |
+
+Add one secret for each additional `email_env` value used in `crous_targets.json`.
+
+## Brevo Setup
+
+1. Create a Brevo account.
+2. Verify the sender email or domain.
+3. Open the Brevo SMTP settings.
+4. Store the SMTP login as `BREVO_LOGIN`.
+5. Store the SMTP key/password as `BREVO_API_KEY`.
+6. Store the verified sender as `FROM_EMAIL`.
+
+Never commit real email addresses, SMTP usernames, or SMTP keys.
+
 ## GitHub Actions
 
 The workflow is `.github/workflows/run_check.yml`.
@@ -75,29 +122,21 @@ The workflow is `.github/workflows/run_check.yml`.
 It:
 
 - supports `workflow_dispatch` for cron-job.org
-- keeps a small daily schedule so GitHub does not disable the workflow
-- uses shallow checkout to avoid fetching the full bloated history on every run
+- keeps a small scheduled run so GitHub does not disable the workflow
+- uses shallow checkout to keep workflow startup fast
 - installs `requirements.txt`
-- exposes `BREVO_LOGIN`, `BREVO_API_KEY`, `FROM_EMAIL`, `TO_EMAIL`, and `FRIEND_TO_EMAIL`
 - runs `python crous_notifier.py`
 - commits updated target-folder CSVs under `data/`
+- uses GitHub Actions `concurrency` so frequent triggers queue instead of overlapping
 
-Required repository secrets:
+## cron-job.org Setup
 
-| Secret | Value |
-| --- | --- |
-| `BREVO_LOGIN` | Brevo SMTP login. |
-| `BREVO_API_KEY` | Brevo SMTP key/password. |
-| `FROM_EMAIL` | Verified Brevo sender email. |
-| `TO_EMAIL` | Bordeaux recipient email. |
-| `FRIEND_TO_EMAIL` | Strasbourg recipient email. |
+Create a cron-job.org job that calls GitHub's workflow dispatch API.
 
-## cron-job.org
-
-Dispatch the workflow with:
+Request:
 
 ```text
-POST https://api.github.com/repos/jabrane-me/crous-bot-notifier/actions/workflows/run_check.yml/dispatches
+POST https://api.github.com/repos/OWNER/REPO/actions/workflows/run_check.yml/dispatches
 ```
 
 Headers:
@@ -122,34 +161,32 @@ Use a fine-grained GitHub token scoped to this repository with Actions read/writ
 Keep:
 
 - source files
-- workflow and config files
+- `requirements.txt`
+- `crous_targets.json`
+- `.github/workflows/run_check.yml`
 - useful per-target CSV state under `data/`
-- existing useful Bordeaux history under `bordeaux_data/`
+- any intentionally retained legacy target data folder
 
 Do not commit:
 
 - root-level generated CSVs
-- old empty test output under `data/test_jabrane_main/`
-- temporary local files, caches, or credentials
+- obsolete test output folders
+- temporary local files
+- cache folders
+- credentials
 
-## History Cleanup
+## Local Run
 
-The current tree prevents new root-level CSV bloat. Old large CSVs still remain in Git history until history is rewritten.
-
-Recommended `git filter-repo` cleanup:
+Install dependencies:
 
 ```bash
-python -m pip install git-filter-repo
-git clone --mirror https://github.com/jabrane-me/crous-bot-notifier.git crous-bot-notifier-cleanup.git
-cd crous-bot-notifier-cleanup.git
-git filter-repo \
-  --path daily_activity_log.csv \
-  --path removed_residences.log.csv \
-  --path daily_report_log.csv \
-  --path available_residences.csv \
-  --path data/test_jabrane_main \
-  --invert-paths
-git push --force --mirror
+python -m pip install -r requirements.txt
 ```
 
-Pause cron-job.org before a force-push history rewrite and make a backup of any historical CSVs that should be retained outside Git history.
+Run the bot:
+
+```bash
+python crous_notifier.py
+```
+
+Local runs may create or update CSV files in target data folders.

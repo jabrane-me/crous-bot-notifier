@@ -25,7 +25,7 @@ Targets are configured in `crous_targets.json`. Each target has its own label, r
     "data_dir": "data/target_label",
     "cities": ["City 1", "City 2"],
     "urls": [
-      "https://trouverunlogement.lescrous.fr/tools/43/search?bounds=..."
+      "https://trouverunlogement.lescrous.fr/tools/45/search?bounds=..."
     ],
     "send_immediate_alert": true,
     "send_daily_report": true,
@@ -45,7 +45,7 @@ Daily reports are evaluated per target. A report is sent only when:
 
 - `send_daily_report` is `true`
 - the current CET time is inside that target's `daily_report_time_window`
-- that target's `daily_report_log.csv` does not already contain today's `sent_date`
+- that target's `daily_report_log.csv` does not already contain today's `date_cet`
 
 `daily_report_time_window` uses `HH:MM` values:
 
@@ -57,6 +57,7 @@ Daily reports are evaluated per target. A report is sent only when:
 ```
 
 The example window means reports are eligible from 23:30 up to, but not including, 00:00 CET. Windows can differ per target.
+If an immediate alert is sent inside the daily report window, the bot records a `covered_by_alert` marker instead of sending a duplicate daily report in the same run.
 
 ## Immediate Alerts
 
@@ -79,9 +80,10 @@ CSV files inside each target's `data_dir` are bot state and should be committed:
 | `current_available.csv` | Latest snapshot used to detect additions and removals. |
 | `availability_changes.csv` | Add/remove event record for the target. |
 | `unique_residences.csv` | Catalog of unique listings seen for the target. |
-| `daily_report_log.csv` | Minimal report marker: `sent_date,sent_time_cet`. |
+| `daily_report_log.csv` | Minimal report marker: `date_cet,time_cet,target_name,status,current_count`. |
 
 Generated root-level CSV files from old versions should not be committed.
+When listings are unchanged between runs, the bot preserves existing timestamps and does not append new state rows, so GitHub Actions has nothing new to commit.
 
 Generated listing CSVs use this column order:
 

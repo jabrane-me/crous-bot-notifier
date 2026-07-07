@@ -5,7 +5,7 @@
     "data_dir": "data/bordeaux",
     "cities": ["Bordeaux", "Pessac", "Talence", "Mérignac"],
     "urls": [
-      "https://trouverunlogement.lescrous.fr/tools/43/search?bounds=-0.7587897_44.9161806_-0.5336838_44.7423986"
+      "https://trouverunlogement.lescrous.fr/tools/45/search?bounds=-0.7587897_44.9161806_-0.5336838_44.7423986"
     ],
     "send_immediate_alert": true,
     "send_daily_report": true,
@@ -20,7 +20,7 @@
     "data_dir": "data/strasbourg",
     "cities": ["Strasbourg", "Illkirch-Graffenstaden", "Schiltigheim"],
     "urls": [
-      "https://trouverunlogement.lescrous.fr/tools/43/search?bounds=7.6600000_48.6600000_7.8500000_48.4800000"
+      "https://trouverunlogement.lescrous.fr/tools/45/search?bounds=7.6600000_48.6600000_7.8500000_48.4800000"
     ],
     "send_immediate_alert": true,
     "send_daily_report": true,

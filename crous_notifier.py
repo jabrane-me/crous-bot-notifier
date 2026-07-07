@@ -50,7 +50,8 @@ CSV_HEADERS = [
 ]
 CHANGE_HEADERS = ["timestamp_cet", "event", *CSV_HEADERS]
 UNIQUE_HEADERS = [*CSV_HEADERS, "last_event", "removed_at_cet", "seen_count"]
-DAILY_REPORT_HEADERS = ["sent_date", "sent_time_cet"]
+DAILY_REPORT_HEADERS = ["date_cet", "time_cet", "target_name", "status", "current_count"]
+LISTING_CONTENT_HEADERS = [header for header in CSV_HEADERS if header not in {"first_seen_cet", "last_seen_cet"}]
 
 
 @dataclass(frozen=True)
@@ -118,6 +119,20 @@ def is_within_daily_report_window(timestamp_dt: datetime, window: dict[str, str]
 
 def normalize_space(value: str) -> str:
     return re.sub(r"\s+", " ", value or "").strip()
+
+
+def listing_content_changed(previous: dict[str, str], current: dict[str, str]) -> bool:
+    return any(
+        normalize_space(previous.get(field, "")) != normalize_space(current.get(field, ""))
+        for field in LISTING_CONTENT_HEADERS
+    )
+
+
+def increment_count(value: str | None) -> str:
+    try:
+        return str(int(value or 0) + 1)
+    except ValueError:
+        return "1"
 
 
 def redact_address(value: str) -> str:
@@ -283,7 +298,7 @@ def scrape_crous_page(url: str, timestamp: str) -> list[dict[str, str]] | None:
                 page_response.raise_for_status()
                 page_soup = BeautifulSoup(page_response.content, "html.parser")
             for card in page_soup.select(".fr-card"):
-                if residence := card_to_residence(card, page_url, timestamp):
+                if residence := card_to_residence(card, url, timestamp):
                     residences.append(residence)
         return residences
     except requests.RequestException as exc:
@@ -440,43 +455,110 @@ def send_email(to_email: str, subject: str, html_body: str) -> bool:
     return True
 
 
-def update_unique_history(data_dir: Path, current: list[dict[str, str]], added: list[dict[str, str]], removed: list[dict[str, str]], timestamp: str) -> None:
+def update_unique_history(
+    data_dir: Path,
+    current: list[dict[str, str]],
+    added: list[dict[str, str]],
+    removed: list[dict[str, str]],
+    changed: list[dict[str, str]],
+    timestamp: str,
+) -> None:
     history_path = data_dir / UNIQUE_HISTORY_FILE
     history = {row["residence_id"]: row for row in read_csv(history_path)}
     added_ids = {row["residence_id"] for row in added}
-    removed_ids = {row["residence_id"] for row in removed}
+    changed_ids = {row["residence_id"] for row in changed}
+    meaningful_ids = added_ids | changed_ids
+    updated = False
+
     for row in current:
-        previous = history.get(row["residence_id"], {})
+        residence_id_value = row["residence_id"]
+        previous = history.get(residence_id_value)
+        if residence_id_value not in meaningful_ids and previous and not previous.get("removed_at_cet"):
+            continue
+
         merged = {**row}
-        merged["first_seen_cet"] = previous.get("first_seen_cet") or row["first_seen_cet"]
-        merged["last_seen_cet"] = timestamp
-        merged["last_event"] = "added" if row["residence_id"] in added_ids else previous.get("last_event", "seen")
+        merged["first_seen_cet"] = (previous or {}).get("first_seen_cet") or row["first_seen_cet"]
+        merged["last_seen_cet"] = row.get("last_seen_cet") or timestamp
+        if residence_id_value in added_ids:
+            merged["last_event"] = "added"
+        elif residence_id_value in changed_ids:
+            merged["last_event"] = "changed"
+        else:
+            merged["last_event"] = (previous or {}).get("last_event", "seen")
         merged["removed_at_cet"] = ""
-        merged["seen_count"] = str(int(previous.get("seen_count") or 0) + 1)
-        history[row["residence_id"]] = merged
+        merged["seen_count"] = (
+            increment_count((previous or {}).get("seen_count"))
+            if residence_id_value in meaningful_ids
+            else ((previous or {}).get("seen_count") or "1")
+        )
+        history[residence_id_value] = merged
+        updated = True
+
     for row in removed:
-        previous = history.get(row["residence_id"], row)
-        previous.update(row)
-        previous["last_event"] = "removed"
-        previous["removed_at_cet"] = timestamp
-        previous["seen_count"] = previous.get("seen_count") or "1"
-        history[row["residence_id"]] = previous
-    write_csv(history_path, sorted(history.values(), key=sort_key), UNIQUE_HEADERS)
+        residence_id_value = row["residence_id"]
+        previous = history.get(residence_id_value, {})
+        merged = {**previous, **row}
+        merged["first_seen_cet"] = previous.get("first_seen_cet") or row.get("first_seen_cet", "")
+        merged["last_seen_cet"] = previous.get("last_seen_cet") or row.get("last_seen_cet", "")
+        merged["last_event"] = "removed"
+        merged["removed_at_cet"] = timestamp
+        merged["seen_count"] = increment_count(previous.get("seen_count")) if previous else "1"
+        history[residence_id_value] = merged
+        updated = True
+
+    if updated:
+        write_csv(history_path, sorted(history.values(), key=sort_key), UNIQUE_HEADERS)
 
 
-def daily_report_already_sent(data_dir: Path, date_cet: str) -> bool:
+def daily_report_already_sent(data_dir: Path, target_name: str, date_cet: str) -> bool:
     for row in read_csv(data_dir / DAILY_REPORT_LOG_FILE):
-        if row.get("sent_date") == date_cet:
+        row_date = row.get("date_cet") or row.get("sent_date")
+        row_target = row.get("target_name")
+        if row_date == date_cet and (not row_target or row_target == target_name):
             return True
     return False
 
 
-def maybe_send_daily_report(target: RecipientTarget, current: list[dict[str, str]], timestamp_dt: datetime, timestamp: str) -> None:
+def append_daily_report_marker(target: RecipientTarget, timestamp_dt: datetime, status: str, current_count: int) -> None:
+    path = target.data_dir / DAILY_REPORT_LOG_FILE
+    rows = []
+    for row in read_csv(path):
+        row_date = row.get("date_cet") or row.get("sent_date")
+        if not row_date:
+            continue
+        rows.append({
+            "date_cet": row_date,
+            "time_cet": row.get("time_cet") or row.get("sent_time_cet") or "",
+            "target_name": row.get("target_name") or target.name,
+            "status": row.get("status") or "sent",
+            "current_count": row.get("current_count") or "",
+        })
+    rows.append({
+        "date_cet": timestamp_dt.date().isoformat(),
+        "time_cet": timestamp_dt.time().isoformat(timespec="seconds"),
+        "target_name": target.name,
+        "status": status,
+        "current_count": str(current_count),
+    })
+    write_csv(path, rows, DAILY_REPORT_HEADERS)
+
+
+def maybe_send_daily_report(
+    target: RecipientTarget,
+    current: list[dict[str, str]],
+    timestamp_dt: datetime,
+    timestamp: str,
+    covered_by_alert: bool = False,
+) -> None:
     if not target.send_daily_report or not is_within_daily_report_window(timestamp_dt, target.daily_report_time_window):
         return
 
     date_cet = timestamp_dt.date().isoformat()
-    if daily_report_already_sent(target.data_dir, date_cet):
+    if daily_report_already_sent(target.data_dir, target.name, date_cet):
+        return
+
+    if covered_by_alert:
+        append_daily_report_marker(target, timestamp_dt, "covered_by_alert", len(current))
         return
 
     subject = f"CROUS {target.name}: rapport quotidien ({len(current)} logements)"
@@ -487,10 +569,7 @@ def maybe_send_daily_report(target: RecipientTarget, current: list[dict[str, str
         return
 
     if sent:
-        append_csv(target.data_dir / DAILY_REPORT_LOG_FILE, [{
-            "sent_date": date_cet,
-            "sent_time_cet": timestamp_dt.time().isoformat(timespec="seconds"),
-        }], DAILY_REPORT_HEADERS)
+        append_daily_report_marker(target, timestamp_dt, "sent", len(current))
 
 
 def process_target(target: RecipientTarget) -> None:
@@ -515,31 +594,39 @@ def process_target(target: RecipientTarget) -> None:
         return
 
     current = merge_duplicates(scraped)
+    changed = []
     for row in current:
-        if row["residence_id"] in previous:
-            row["first_seen_cet"] = previous[row["residence_id"]].get("first_seen_cet") or row["first_seen_cet"]
+        old = previous.get(row["residence_id"])
+        if old:
+            row["first_seen_cet"] = old.get("first_seen_cet") or row["first_seen_cet"]
+            if listing_content_changed(old, row):
+                changed.append(row)
+            else:
+                row["last_seen_cet"] = old.get("last_seen_cet") or row["last_seen_cet"]
 
     current_by_id = {row["residence_id"]: row for row in current}
     added = sorted([row for rid, row in current_by_id.items() if rid not in previous], key=sort_key)
     removed = sorted([row for rid, row in previous.items() if rid not in current_by_id], key=sort_key)
+    changed = sorted(changed, key=sort_key)
 
     change_rows = [{"timestamp_cet": timestamp, "event": "added", **row} for row in added]
     change_rows.extend({"timestamp_cet": timestamp, "event": "removed", **row} for row in removed)
     append_csv(target.data_dir / CHANGE_LOG_FILE, change_rows, CHANGE_HEADERS)
-    update_unique_history(target.data_dir, current, added, removed, timestamp)
+    update_unique_history(target.data_dir, current, added, removed, changed, timestamp)
     write_csv(snapshot_path, current, CSV_HEADERS)
 
+    alert_sent = False
     if (added or removed) and target.send_immediate_alert:
         subject = f"CROUS {target.name}: +{len(added)} / -{len(removed)} logements"
         try:
-            send_email(target.email, subject, create_email_body(target, added, removed, current))
+            alert_sent = send_email(target.email, subject, create_email_body(target, added, removed, current))
         except Exception as exc:
             print(f"Failed to send email to {redact_address(target.email)}: {exc}")
 
-    maybe_send_daily_report(target, current, timestamp_dt, timestamp)
+    maybe_send_daily_report(target, current, timestamp_dt, timestamp, covered_by_alert=alert_sent)
     if failed_urls:
         print(f"{target.name}: partial scrape failures: {'; '.join(failed_urls)}")
-    print(f"{target.name}: {len(current)} current, +{len(added)}, -{len(removed)}")
+    print(f"{target.name}: {len(current)} current, +{len(added)}, -{len(removed)}, ~{len(changed)}")
 
 
 def load_targets(config_path: Path | None = None) -> list[RecipientTarget]:

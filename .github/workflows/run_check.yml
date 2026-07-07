@@ -1,61 +1,79 @@
-name: Check for Crous Housing Hourly
+name: Check CROUS Housing
 
 on:
-  # Allows you to run this workflow manually from the Actions tab on GitHub
-  # For cron-job.org "cheat code" for more reliable scheduling exactly every 5 minutes.
   workflow_dispatch:
-
-  # Sets up the schedule to run automatically “At 01:00.” to Prevent Disablement
   schedule:
     - cron: '0 1 * * *'
 
 jobs:
   run-scraper:
-    # The job will run on a virtual machine with Ubuntu
     runs-on: ubuntu-latest
 
-    # This grants the job permission to write files back to your repository
     permissions:
       contents: write
 
     steps:
-      # Step 1: Checks out your repository's code onto the runner
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Step 2: Sets up the Python environment
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # Step 3: Installs the required Python libraries
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # Step 4: Executes your Python script
-      # It securely passes your secrets as environment variables
+      - name: Restore generated history cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            data/**/availability_changes.csv
+            data/**/unique_residences.csv
+          key: crous-generated-history-${{ github.run_id }}
+          restore-keys: |
+            crous-generated-history-
+
       - name: Run the housing check script
         env:
           BREVO_LOGIN: ${{ secrets.BREVO_LOGIN }}
           BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
           FRIEND_TO_EMAIL: ${{ secrets.FRIEND_TO_EMAIL }}
-          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
         run: python crous_notifier.py
 
-      # Step 5: Commits and pushes any changed files (the CSVs)
-      - name: Commit and push data files
+      - name: Upload generated history artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crous-generated-history-${{ github.run_id }}
+          path: |
+            data/**/availability_changes.csv
+            data/**/unique_residences.csv
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Save generated history cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            data/**/availability_changes.csv
+            data/**/unique_residences.csv
+          key: crous-generated-history-${{ github.run_id }}
+
+      - name: Commit and push state files
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add -A
-          # Check if there are changes to commit to avoid errors
+          mkdir -p data
+          git add --all -- data
           if git diff --staged --quiet; then
-            echo "No changes to commit."
+            echo "No state changes to commit."
           else
-            git commit -m "Update data files"
+            git commit -m "Update CROUS state files"
             git push
           fi

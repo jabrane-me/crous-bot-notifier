@@ -1,194 +1,120 @@
 # CROUS Housing Notifier Bot
 
-A CROUS availability notifier for students who need fast alerts while listings appear and disappear quickly. It scrapes configured `trouverunlogement.lescrous.fr` searches, stores CSV state/history, and sends per-target email alerts.
+A GitHub Actions bot that checks CROUS housing search URLs, emails immediate listing changes, and can send one daily report per target.
 
-## What changed
+## Current Config
 
-- **Config is now outside Python:** edit `crous_targets.json` instead of touching `crous_notifier.py`.
-- **Multi-person setup:** each target points to its own email secret via `email_env`.
-- **Clean CSV state/history:** current availability, add/remove logs, unique historical residences, and run logs.
-- **Useful parsing:** price/surface min-max are parsed while preserving raw address text.
-- **cron-job.org friendly:** `workflow_dispatch` stays enabled so external scheduling is reliable.
+`crous_targets.json` is currently set to the test target:
 
-## How the bot works
+| Target | Email secret | Data folder | URL | Daily report |
+| --- | --- | --- | --- | --- |
+| `TEST - Jabrane main CROUS page` | `TO_EMAIL` | `data/test_jabrane_main_email` | `https://trouverunlogement.lescrous.fr/tools/42/search` | Off |
 
-1. `crous_targets.json` defines each monitored target/search.
-2. GitHub Actions injects private values (recipient emails and Brevo credentials) through secrets.
-3. cron-job.org triggers GitHub's workflow dispatch API.
-4. The workflow runs `python crous_notifier.py`.
-5. The script scrapes CROUS, compares with previous CSV state, sends alerts on changes, writes CSV history, and the workflow commits updated CSV files.
+This is intentional test mode. Switch the JSON back to Bordeaux/Strasbourg before using the bot for production monitoring.
 
-## Files and secrets
+## Production Targets
 
-| Item | Purpose |
-| --- | --- |
-| `crous_targets.json` | Non-secret target config: names, city notes, data folders, CROUS URLs, and `email_env` names. |
-| `.github/workflows/run_check.yml` | Workflow that runs the scraper and commits CSV updates. |
-| GitHub Actions Secrets | Private values: Brevo credentials and actual recipient emails. |
+The production setup is:
 
-You should not need to edit `crous_notifier.py` for normal setup.
+| Target | Email secret | Data folder | Cities | CROUS tool |
+| --- | --- | --- | --- | --- |
+| Bordeaux | `TO_EMAIL` | `data/bordeaux` | Bordeaux, Pessac, Talence, Mérignac | `/tools/43` |
+| Strasbourg | `FRIEND_TO_EMAIL` | `data/strasbourg` | Strasbourg, Illkirch-Graffenstaden, Schiltigheim | `/tools/43` |
 
-## Configure targets
+Production targets should use:
 
-Edit [`crous_targets.json`](crous_targets.json). This file is safe to commit because it references secret names, not private emails/passwords.
+- `send_immediate_alert: true`
+- `send_daily_report: true`
 
-```json
-[
-  {
-    "name": "Bordeaux",
-    "email_env": "TO_EMAIL",
-    "data_dir": "data/bordeaux",
-    "cities": ["Bordeaux", "Pessac", "Talence", "Mérignac"],
-    "urls": [
-      "https://trouverunlogement.lescrous.fr/tools/41/search?bounds=-0.6386987_44.9161806_-0.5336838_44.8107826"
-    ],
-    "send_immediate_alert": true,
-    "send_daily_report": false
-  },
-  {
-    "name": "Friend target cities",
-    "email_env": "FRIEND_TO_EMAIL",
-    "data_dir": "data/friend",
-    "cities": ["Replace with friend's target cities"],
-    "urls": [
-      "https://trouverunlogement.lescrous.fr/tools/41/search"
-    ],
-    "send_immediate_alert": true,
-    "send_daily_report": false
-  }
-]
+## What Gets Persisted
+
+Only small state files should be committed:
+
+| File | Committed? | Purpose |
+| --- | --- | --- |
+| `current_available.csv` | Yes | Latest snapshot used to detect additions/removals. |
+| `daily_report_log.csv` | Yes | Minimal daily report marker with `sent_date,sent_time_cet`. |
+| `availability_changes.csv` | No | Generated add/remove history, stored by Actions cache/artifact only. |
+| `unique_residences.csv` | No | Generated historical listing catalog, stored by Actions cache/artifact only. |
+
+There is no execution-history CSV. The only report marker kept in Git is the tiny per-target `daily_report_log.csv`, because it prevents duplicate daily reports.
+
+## Alerts And Reports
+
+Immediate alerts are sent when a target has added or removed listings. Subjects use the target name:
+
+```text
+CROUS Bordeaux: +2 / -0 logements
+CROUS Strasbourg: +1 / -0 logements
 ```
 
-| Field | Meaning |
-| --- | --- |
-| `name` | Label used in emails and logs. |
-| `email_env` | Environment variable/GitHub secret name containing the recipient email. |
-| `data_dir` | Folder where this target's CSV files are stored. |
-| `cities` | Human notes only; address text is kept as-is. |
-| `urls` | One or more CROUS search URLs copied from the CROUS website. |
-| `send_immediate_alert` | Sends email when additions/removals are detected. |
-| `send_daily_report` | Kept for compatibility; current flow focuses on immediate alerts and CSV history. |
+Daily reports are sent once per target per CET day when `send_daily_report` is true and the current time is inside `DAILY_REPORT_TIME_WINDOW_CET`.
 
-If you want another config file locally, set `TARGETS_CONFIG_PATH=/path/to/file.json`.
+Default report window:
 
-### Add another person
-
-Add another object to `crous_targets.json`, for example:
-
-```json
-{
-  "name": "Lyon for Sara",
-  "email_env": "SARA_EMAIL",
-  "data_dir": "data/sara_lyon",
-  "cities": ["Lyon", "Villeurbanne"],
-  "urls": [
-    "PASTE_CROUS_SEARCH_URL_HERE"
-  ],
-  "send_immediate_alert": true,
-  "send_daily_report": false
-}
+```text
+23->00
 ```
 
-Then create the matching GitHub secret (`SARA_EMAIL`) and expose it in workflow `env:`.
+That means reports are eligible from 23:00 up to, but not including, 00:00 CET. The sent marker prevents repeats during that window.
 
-### One person with multiple searches
+Email bodies show the useful listing detail line, for example:
 
-Use multiple URLs in one target:
-
-```json
-"urls": [
-  "CROUS_URL_FOR_AREA_1",
-  "CROUS_URL_FOR_AREA_2",
-  "CROUS_URL_FOR_AREA_3"
-]
+```text
+19 m² | Individuel | 1 lit simple | WC, Douche, Frigo, Micro-onde
 ```
 
-The script deduplicates listings across URLs and sends one alert per target.
+Residence IDs are internal and should not appear in recipient-facing email content.
 
-## Get CROUS search URLs
+## CSV Columns
 
-1. Open `https://trouverunlogement.lescrous.fr/`.
-2. Apply filters/map bounds.
-3. Copy the final browser URL.
-4. Paste it into the target's `urls` array.
+Generated listing CSVs use this order:
 
-Use tight map bounds/filters for competitive cities so alerts stay actionable.
+```text
+residence_id, name, housing_type, price_text, price_min_eur, price_max_eur, surface_text, surface_min_m2, surface_max_m2, details, address, link, source_url, first_seen_cet, last_seen_cet
+```
 
-## Set up Brevo SMTP
+If a price or surface has only one number, it is written to the `min` column and the matching `max` column is left empty.
 
-The bot sends through Brevo SMTP: `smtp-relay.brevo.com:587`.
+## GitHub Actions
 
-1. Create or log in to Brevo.
-2. Verify sender email/domain.
-3. Go to **SMTP & API**.
-4. Put SMTP login in `BREVO_LOGIN`.
-5. Put SMTP key/password in `BREVO_API_KEY`.
-6. Put verified sender email in `FROM_EMAIL`.
+The workflow is `.github/workflows/run_check.yml`.
 
-Never commit Brevo credentials.
+It:
 
-## GitHub Actions secrets
+- supports `workflow_dispatch` for cron-job.org
+- keeps a small daily schedule so GitHub does not disable the workflow
+- installs `requirements.txt`
+- runs `python crous_notifier.py`
+- exposes `BREVO_LOGIN`, `BREVO_API_KEY`, `FROM_EMAIL`, `TO_EMAIL`, and `FRIEND_TO_EMAIL`
+- caches/uploads bulky generated history files
+- commits only allowed small state files under `data/`
 
-In your repository, go to **Settings → Secrets and variables → Actions** and create:
+Required repository secrets:
 
 | Secret | Value |
 | --- | --- |
 | `BREVO_LOGIN` | Brevo SMTP login. |
 | `BREVO_API_KEY` | Brevo SMTP key/password. |
-| `FROM_EMAIL` | Verified sender email. |
-| `TO_EMAIL` | Your recipient email. |
-| `FRIEND_TO_EMAIL` | Your friend's recipient email. |
+| `FROM_EMAIL` | Verified Brevo sender email. |
+| `TO_EMAIL` | Main/test recipient email. |
+| `FRIEND_TO_EMAIL` | Strasbourg recipient email when production config is restored. |
 
-For every new `email_env`, add a matching secret.
+## cron-job.org
 
-## Workflow and cron-job.org setup
+Use cron-job.org to dispatch the workflow on the cadence you want.
 
-The workflow is in `.github/workflows/run_check.yml` and supports:
-
-- `workflow_dispatch` (manual/API trigger, recommended for cron-job.org)
-- daily `schedule` (mainly to keep workflow active)
-
-### Pass extra recipient secrets to the workflow
-
-If you add more people, include their secret in workflow `env:`:
-
-```yaml
-env:
-  BREVO_LOGIN: ${{ secrets.BREVO_LOGIN }}
-  BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
-  TO_EMAIL: ${{ secrets.TO_EMAIL }}
-  FRIEND_TO_EMAIL: ${{ secrets.FRIEND_TO_EMAIL }}
-  SARA_EMAIL: ${{ secrets.SARA_EMAIL }}
-  FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
-```
-
-If a target's `email_env` is missing from workflow `env:`, that target is skipped.
-
-### Create a GitHub PAT for cron-job.org
-
-Recommended: fine-grained token scoped to this repository with **Actions: Read and write**.
-
-Classic fallback:
-
-- private repo: `repo`
-- public repo: `public_repo`
-
-Store the token in cron-job.org only.
-
-### cron-job.org request
-
-- Method: `POST`
-- URL:
+Request:
 
 ```text
-https://api.github.com/repos/jabrane-me/crous-bot-notifier/actions/workflows/run_check.yml/dispatches
+POST https://api.github.com/repos/jabrane-me/crous-bot-notifier/actions/workflows/run_check.yml/dispatches
 ```
 
 Headers:
 
 ```text
 Accept: application/vnd.github+json
-Authorization: ******
+Authorization: Bearer YOUR_GITHUB_TOKEN
 X-GitHub-Api-Version: 2022-11-28
 Content-Type: application/json
 ```
@@ -199,108 +125,37 @@ Body:
 {"ref":"main"}
 ```
 
-Use another branch name if needed.
+Use a fine-grained GitHub token scoped to this repository with Actions read/write permission.
 
-### Verify cron-job.org worked
+## Cleanup Rules
 
-1. Open GitHub **Actions** for the repository.
-2. Open latest workflow run.
-3. Check scraper logs.
-4. Check committed CSV updates.
-5. If changes were detected, check recipient inbox.
+Do not commit:
 
-## CSV outputs
+- root-level generated CSVs
+- obsolete `bordeaux_data/` output from older bot versions
+- `data/test_*/` generated output folders
+- empty or old test CSV files
+- generated `availability_changes.csv` or `unique_residences.csv`
 
-For every configured `data_dir`, the bot writes:
+## History Cleanup
 
-| File | Purpose |
-| --- | --- |
-| `current_available.csv` | Latest visible listings only. |
-| `availability_changes.csv` | Append-only add/remove event log with timestamps. |
-| `unique_residences.csv` | Historical catalog of unique residence/unit variants. |
-| `run_log.csv` | Scrape/change counts and partial failure info. |
+This PR stops new bloat, but old generated CSVs still live in Git history until the repository history is rewritten.
 
-Main columns include:
-
-- `residence_id`
-- `name`
-- `housing_type`
-- `price_text`, `price_min_eur`, `price_max_eur`
-- `surface_text`, `surface_min_m2`, `surface_max_m2`
-- `address`
-- `details`
-- `link`
-- `source_url`
-- `first_seen_cet`, `last_seen_cet`
-
-## Run locally
-
-Install dependencies:
+Recommended cleanup with `git filter-repo`:
 
 ```bash
-python -m pip install -r requirements.txt
+python -m pip install git-filter-repo
+git clone --mirror https://github.com/jabrane-me/crous-bot-notifier.git crous-bot-notifier-cleanup.git
+cd crous-bot-notifier-cleanup.git
+git filter-repo \
+  --path daily_activity_log.csv \
+  --path removed_residences.log.csv \
+  --path daily_report_log.csv \
+  --path available_residences.csv \
+  --path bordeaux_data \
+  --path data/test_jabrane_main \
+  --invert-paths
+git push --force --mirror
 ```
 
-Dry run:
-
-```bash
-python crous_notifier.py
-```
-
-Run with recipient env vars:
-
-```bash
-TO_EMAIL=you@example.com FRIEND_TO_EMAIL=friend@example.com python crous_notifier.py
-```
-
-Send emails locally:
-
-```bash
-BREVO_LOGIN=... BREVO_API_KEY=... FROM_EMAIL=verified@example.com TO_EMAIL=you@example.com python crous_notifier.py
-```
-
-## Troubleshooting
-
-### Target is skipped
-
-Check that:
-
-- matching secret exists
-- workflow passes it under `env:`
-- `email_env` exactly matches that secret name
-
-### cron-job.org returns 401 or 403
-
-Check that:
-
-- PAT is correct and not expired
-- `Authorization: ******` header is present
-- token has Actions read/write permission
-
-### cron-job.org returns 404
-
-Check that:
-
-- owner/repo is correct
-- workflow filename is `run_check.yml`
-- branch in body contains that workflow file
-
-### No email arrives
-
-Check that:
-
-- Brevo sender is verified
-- `BREVO_LOGIN`, `BREVO_API_KEY`, and `FROM_EMAIL` are correct
-- recipient secret exists and is passed to workflow
-- there were actual additions/removals (alerts only send on changes)
-
-### CSVs changed but were not committed
-
-Workflow needs:
-
-```yaml
-permissions:
-  contents: write
-```
-
-The included workflow already has this.
+Before force-pushing rewritten history, export any old production CSVs you still want outside Git, tell collaborators to reclone, and pause cron-job.org so it does not dispatch during the rewrite.

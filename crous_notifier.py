@@ -24,7 +24,7 @@ BASE_URL = "https://trouverunlogement.lescrous.fr"
 CET = timezone(timedelta(hours=1), "CET")
 DEFAULT_TIMEOUT_SECONDS = 20
 RESULTS_PER_PAGE = 24
-RUN_LOG_MAX_ROWS = 500
+DAILY_REPORT_TIME_WINDOW_CET = os.environ.get("DAILY_REPORT_TIME_WINDOW_CET", "23->00")
 SENDER_NAME = "CROUS BOT Notifier"
 
 BREVO_LOGIN = os.environ.get("BREVO_LOGIN")
@@ -39,7 +39,7 @@ HEADERS = {
 CURRENT_AVAILABLE_FILE = "current_available.csv"
 CHANGE_LOG_FILE = "availability_changes.csv"
 UNIQUE_HISTORY_FILE = "unique_residences.csv"
-RUN_LOG_FILE = "run_log.csv"
+DAILY_REPORT_LOG_FILE = "daily_report_log.csv"
 LEGACY_AVAILABLE_FILE = "available_residences.csv"
 DEFAULT_CONFIG_FILE = "crous_targets.json"
 
@@ -50,10 +50,7 @@ CSV_HEADERS = [
 ]
 CHANGE_HEADERS = ["timestamp_cet", "event", *CSV_HEADERS]
 UNIQUE_HEADERS = [*CSV_HEADERS, "last_event", "removed_at_cet", "seen_count"]
-RUN_LOG_HEADERS = [
-    "timestamp_cet", "target_name", "recipient_email", "scraped_count",
-    "current_count", "added_count", "removed_count", "status", "message",
-]
+DAILY_REPORT_HEADERS = ["sent_date", "sent_time_cet"]
 
 
 @dataclass(frozen=True)
@@ -74,6 +71,26 @@ def slugify(value: str) -> str:
 
 def now_cet() -> datetime:
     return datetime.now(CET)
+
+
+def daily_report_window_hours() -> tuple[int, int]:
+    match = re.fullmatch(r"\s*(\d{1,2})\s*(?:->|-)\s*(\d{1,2})\s*", DAILY_REPORT_TIME_WINDOW_CET)
+    if not match:
+        return 23, 0
+    start_hour, end_hour = int(match.group(1)), int(match.group(2))
+    if not 0 <= start_hour <= 23 or not 0 <= end_hour <= 23:
+        return 23, 0
+    return start_hour, end_hour
+
+
+def is_within_daily_report_window(timestamp_dt: datetime) -> bool:
+    start_hour, end_hour = daily_report_window_hours()
+    current_hour = timestamp_dt.hour
+    if start_hour == end_hour:
+        return True
+    if start_hour < end_hour:
+        return start_hour <= current_hour < end_hour
+    return current_hour >= start_hour or current_hour < end_hour
 
 
 def normalize_space(value: str) -> str:
@@ -128,16 +145,16 @@ def parse_price(price_text: str) -> tuple[str, str]:
 def parse_surface(details: str) -> tuple[str, str, str]:
     surface_parts = [
         part for part in re.split(r"\s*\|\s*", details or "")
-        if re.search(r"m\s*(?:²|2)|㎡", part, flags=re.IGNORECASE)
+        if re.search(r"m\s*(?:²|2)\b|㎡", part, flags=re.IGNORECASE)
     ]
     surface_text = " | ".join(surface_parts)
-    min_m2, max_m2 = parse_range(surface_text, [r"m\s*(?:²|2)", r"㎡"])
+    min_m2, max_m2 = parse_range(surface_text, [r"m\s*(?:²|2)\b", r"㎡"])
     return surface_text, min_m2, max_m2
 
 
 def parse_housing_type(name: str, details: str) -> str:
-    combined = f"{name} | {details}".lower()
-    for label, pattern in [
+    candidates = [*re.split(r"\s*\|\s*", details or ""), name]
+    labels = [
         ("T1 bis", r"\bt1\s*bis\b"),
         ("T1", r"\bt1\b"),
         ("T2", r"\bt2\b"),
@@ -146,9 +163,19 @@ def parse_housing_type(name: str, details: str) -> str:
         ("Chambre", r"\bchambre\b"),
         ("Colocation", r"\bcolocation\b"),
         ("Individuel", r"\bindividuel\b"),
-    ]:
-        if re.search(pattern, combined):
-            return label
+        ("Couple", r"\bcouple\b"),
+    ]
+    for candidate in candidates:
+        matches = []
+        for label, pattern in labels:
+            if match := re.search(pattern, candidate, flags=re.IGNORECASE):
+                matches.append((match.start(), label))
+        if matches:
+            ordered = []
+            for _, label in sorted(matches):
+                if label not in ordered:
+                    ordered.append(label)
+            return ", ".join(ordered)
     return ""
 
 
@@ -232,7 +259,7 @@ def scrape_crous_page(url: str, timestamp: str) -> list[dict[str, str]] | None:
                 page_response = session.get(page_url, headers=HEADERS, timeout=DEFAULT_TIMEOUT_SECONDS)
                 page_response.raise_for_status()
                 page_soup = BeautifulSoup(page_response.content, "html.parser")
-            for card in page_soup.find_all("div", class_="fr-card"):
+            for card in page_soup.select(".fr-card"):
                 if residence := card_to_residence(card, page_url, timestamp):
                     residences.append(residence)
         return residences
@@ -266,15 +293,6 @@ def append_csv(path: Path, rows: list[dict[str, str]], headers: list[str]) -> No
         if not file_exists:
             writer.writeheader()
         writer.writerows(rows)
-
-
-def append_limited_csv(path: Path, rows: list[dict[str, str]], headers: list[str], max_rows: int) -> None:
-    if not rows:
-        return
-    rows = read_csv(path) + rows
-    if max_rows > 0 and len(rows) > max_rows:
-        rows = rows[-max_rows:]
-    write_csv(path, rows, headers)
 
 
 def sort_key(residence: dict[str, str]) -> tuple[float, str]:
@@ -329,16 +347,28 @@ def migrate_previous_snapshot(data_dir: Path) -> None:
     write_csv(current, migrated, CSV_HEADERS)
 
 
+def listing_details_line(residence: dict[str, str]) -> str:
+    details = normalize_space(residence.get("details", ""))
+    if details:
+        return details
+    parts = [
+        normalize_space(residence.get("surface_text", "")),
+        normalize_space(residence.get("housing_type", "")),
+    ]
+    return " | ".join(part for part in parts if part)
+
+
 def format_residence_html(residence: dict[str, str], color: str = "#111") -> str:
-    price = residence.get("price_text") or "Prix non indiqué"
-    surface = f" · {html.escape(residence['surface_text'])}" if residence.get("surface_text") else ""
-    housing_type = f" · {html.escape(residence['housing_type'])}" if residence.get("housing_type") else ""
-    details = residence.get("details", "")
-    details_html = f"<p style='margin:3px 0;color:#666;font-size:13px'>{html.escape(details)}</p>" if details else ""
+    price = residence.get("price_text") or "Prix non indique"
+    detail_line = listing_details_line(residence)
+    details_html = (
+        f"<p style='margin:3px 0;color:#333;font-size:14px'>{html.escape(detail_line)}</p>"
+        if detail_line else ""
+    )
     return f"""
     <div style="border-left:3px solid {color};padding-left:14px;margin:0 0 18px 0">
       <p style="margin:0;font-size:17px;font-weight:700"><a href="{html.escape(residence['link'])}" style="color:{color};text-decoration:none">{html.escape(residence['name'])}</a></p>
-      <p style="margin:3px 0;color:#333"><b>{html.escape(price)}</b>{housing_type}{surface}</p>
+      <p style="margin:3px 0;color:#333"><b>{html.escape(price)}</b></p>
       {details_html}
       <p style="margin:3px 0;color:#555">{html.escape(residence.get('address', ''))}</p>
     </div>
@@ -346,7 +376,7 @@ def format_residence_html(residence: dict[str, str], color: str = "#111") -> str
 
 
 def create_email_body(target: RecipientTarget, added: list[dict[str, str]], removed: list[dict[str, str]], current: list[dict[str, str]]) -> str:
-    body = f"<html><body style='font-family:Arial,sans-serif;color:#222'><div style='max-width:760px;margin:auto'><h1>CROUS — {html.escape(target.name)}</h1>"
+    body = f"<html><body style='font-family:Arial,sans-serif;color:#222'><div style='max-width:760px;margin:auto'><h1>CROUS - {html.escape(target.name)}</h1>"
     if added:
         body += f"<h2 style='color:#198754'>Nouveaux logements ({len(added)})</h2>"
         body += "".join(format_residence_html(row, "#198754") for row in added)
@@ -354,6 +384,18 @@ def create_email_body(target: RecipientTarget, added: list[dict[str, str]], remo
         body += f"<h2 style='color:#dc3545'>Logements disparus ({len(removed)})</h2>"
         body += "".join(format_residence_html(row, "#dc3545") for row in removed)
     body += f"<h2>Disponibles maintenant ({len(current)})</h2>"
+    body += "".join(format_residence_html(row) for row in current) if current else "<p>Aucun logement disponible.</p>"
+    return body + "</div></body></html>"
+
+
+def create_daily_report_body(target: RecipientTarget, current: list[dict[str, str]], timestamp: str) -> str:
+    body = (
+        "<html><body style='font-family:Arial,sans-serif;color:#222'>"
+        "<div style='max-width:760px;margin:auto'>"
+        f"<h1>CROUS - Rapport quotidien - {html.escape(target.name)}</h1>"
+        f"<p style='color:#555'>Etat au {html.escape(timestamp)}.</p>"
+        f"<h2>Disponibles maintenant ({len(current)})</h2>"
+    )
     body += "".join(format_residence_html(row) for row in current) if current else "<p>Aucun logement disponible.</p>"
     return body + "</div></body></html>"
 
@@ -371,7 +413,7 @@ def send_email(to_email: str, subject: str, html_body: str) -> bool:
         server.starttls()
         server.login(BREVO_LOGIN, BREVO_API_KEY)
         server.sendmail(FROM_EMAIL, [to_email], msg.as_string())
-    print(f"Sent email to {to_email}: {subject}")
+    print(f"Sent email to {redact_address(to_email)}: {subject}")
     return True
 
 
@@ -399,12 +441,38 @@ def update_unique_history(data_dir: Path, current: list[dict[str, str]], added: 
     write_csv(history_path, sorted(history.values(), key=sort_key), UNIQUE_HEADERS)
 
 
-def write_run_log(data_dir: Path, row: dict[str, str]) -> None:
-    append_limited_csv(data_dir / RUN_LOG_FILE, [row], RUN_LOG_HEADERS, RUN_LOG_MAX_ROWS)
+def daily_report_already_sent(data_dir: Path, date_cet: str) -> bool:
+    for row in read_csv(data_dir / DAILY_REPORT_LOG_FILE):
+        if row.get("sent_date") == date_cet:
+            return True
+    return False
+
+
+def maybe_send_daily_report(target: RecipientTarget, current: list[dict[str, str]], timestamp_dt: datetime, timestamp: str) -> None:
+    if not target.send_daily_report or not is_within_daily_report_window(timestamp_dt):
+        return
+
+    date_cet = timestamp_dt.date().isoformat()
+    if daily_report_already_sent(target.data_dir, date_cet):
+        return
+
+    subject = f"CROUS {target.name}: rapport quotidien ({len(current)} logements)"
+    try:
+        sent = send_email(target.email, subject, create_daily_report_body(target, current, timestamp))
+    except Exception as exc:
+        print(f"Failed to send daily report to {redact_address(target.email)}: {exc}")
+        return
+
+    if sent:
+        append_csv(target.data_dir / DAILY_REPORT_LOG_FILE, [{
+            "sent_date": date_cet,
+            "sent_time_cet": timestamp_dt.time().isoformat(timespec="seconds"),
+        }], DAILY_REPORT_HEADERS)
 
 
 def process_target(target: RecipientTarget) -> None:
-    timestamp = now_cet().isoformat(timespec="seconds")
+    timestamp_dt = now_cet()
+    timestamp = timestamp_dt.isoformat(timespec="seconds")
     target.data_dir.mkdir(parents=True, exist_ok=True)
     migrate_previous_snapshot(target.data_dir)
     snapshot_path = target.data_dir / CURRENT_AVAILABLE_FILE
@@ -420,17 +488,7 @@ def process_target(target: RecipientTarget) -> None:
             scraped.extend(rows)
 
     if failed_urls and not scraped:
-        write_run_log(target.data_dir, {
-            "timestamp_cet": timestamp,
-            "target_name": target.name,
-            "recipient_email": redact_address(target.email),
-            "scraped_count": "0",
-            "current_count": str(len(previous)),
-            "added_count": "0",
-            "removed_count": "0",
-            "status": "error",
-            "message": f"All scrapes failed: {'; '.join(failed_urls)}",
-        })
+        print(f"{target.name}: all scrapes failed: {'; '.join(failed_urls)}")
         return
 
     current = merge_duplicates(scraped)
@@ -453,20 +511,11 @@ def process_target(target: RecipientTarget) -> None:
         try:
             send_email(target.email, subject, create_email_body(target, added, removed, current))
         except Exception as exc:
-            print(f"Failed to send email to {target.email}: {exc}")
+            print(f"Failed to send email to {redact_address(target.email)}: {exc}")
 
-    if added or removed or failed_urls:
-        write_run_log(target.data_dir, {
-            "timestamp_cet": timestamp,
-            "target_name": target.name,
-            "recipient_email": redact_address(target.email),
-            "scraped_count": str(len(scraped)),
-            "current_count": str(len(current)),
-            "added_count": str(len(added)),
-            "removed_count": str(len(removed)),
-            "status": "ok" if not failed_urls else "partial",
-            "message": "; ".join(failed_urls),
-        })
+    maybe_send_daily_report(target, current, timestamp_dt, timestamp)
+    if failed_urls:
+        print(f"{target.name}: partial scrape failures: {'; '.join(failed_urls)}")
     print(f"{target.name}: {len(current)} current, +{len(added)}, -{len(removed)}")
 
 

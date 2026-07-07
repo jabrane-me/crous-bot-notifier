@@ -5,7 +5,10 @@
     "data_dir": "data/bordeaux",
     "cities": ["Bordeaux", "Pessac", "Talence", "Mérignac"],
     "urls": [
-      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=-0.7587897_44.9161806_-0.5336838_44.7423986"
+      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=-0.7569779_44.8627846_-0.6069396_44.7998378&locationName=Mérignac+%2833700%29",
+      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=-0.7587897_44.8225797_-0.6029478_44.749435&locationName=Pessac+%2833600%29",
+      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=-0.6386987_44.9161806_-0.5336838_44.8107826&locationName=Bordeaux",
+      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=-0.6111634_44.8252468_-0.5726706_44.7868187&locationName=Talence+%2833400%29"
     ],
     "send_immediate_alert": true,
     "send_daily_report": true,
@@ -20,7 +23,9 @@
     "data_dir": "data/strasbourg",
     "cities": ["Strasbourg", "Illkirch-Graffenstaden", "Schiltigheim"],
     "urls": [
-      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=7.6600000_48.6600000_7.8500000_48.4800000"
+      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=7.7011138_48.635168_7.803662_48.5981431&locationName=Schiltigheim+%2867300%29",
+      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=7.6936786_48.5513899_7.7668133_48.4931752&locationName=Illkirch-Graffenstaden+%2867400%29",
+      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=7.6881371_48.6461896_7.8360646_48.491861&locationName=Strasbourg"
     ],
     "send_immediate_alert": true,
     "send_daily_report": true,

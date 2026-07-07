@@ -28,14 +28,14 @@ Production targets should use:
 
 ## What Gets Persisted
 
-Only small state files should be committed:
+Per-target CSVs are part of the bot state and should be committed inside each target folder:
 
 | File | Committed? | Purpose |
 | --- | --- | --- |
 | `current_available.csv` | Yes | Latest snapshot used to detect additions/removals. |
 | `daily_report_log.csv` | Yes | Minimal daily report marker with `sent_date,sent_time_cet`. |
-| `availability_changes.csv` | No | Generated add/remove history, stored by Actions cache/artifact only. |
-| `unique_residences.csv` | No | Generated historical listing catalog, stored by Actions cache/artifact only. |
+| `availability_changes.csv` | Yes | Add/remove history for that target. |
+| `unique_residences.csv` | Yes | Historical listing catalog for that target. |
 
 There is no execution-history CSV. The only report marker kept in Git is the tiny per-target `daily_report_log.csv`, because it prevents duplicate daily reports.
 
@@ -57,6 +57,8 @@ Default report window:
 ```
 
 That means reports are eligible from 23:00 up to, but not including, 00:00 CET. The sent marker prevents repeats during that window.
+
+The workflow also uses GitHub Actions `concurrency` and pulls the latest branch state before scraping. If cron-job.org triggers runs every two minutes during the report window, runs queue instead of overlapping, and each queued run reads the latest committed `daily_report_log.csv` before deciding whether to send.
 
 Email bodies show the useful listing detail line, for example:
 
@@ -87,8 +89,9 @@ It:
 - installs `requirements.txt`
 - runs `python crous_notifier.py`
 - exposes `BREVO_LOGIN`, `BREVO_API_KEY`, `FROM_EMAIL`, `TO_EMAIL`, and `FRIEND_TO_EMAIL`
-- caches/uploads bulky generated history files
-- commits only allowed small state files under `data/`
+- serializes runs with GitHub Actions concurrency
+- pulls the latest branch state before scraping
+- commits updated target-folder CSVs under `data/`
 
 Required repository secrets:
 
@@ -132,10 +135,10 @@ Use a fine-grained GitHub token scoped to this repository with Actions read/writ
 Do not commit:
 
 - root-level generated CSVs
-- obsolete `bordeaux_data/` output from older bot versions
-- `data/test_*/` generated output folders
+- `data/test_jabrane_main/`, the old empty test output folder
 - empty or old test CSV files
-- generated `availability_changes.csv` or `unique_residences.csv`
+
+Keep useful Bordeaux history, including existing `bordeaux_data/`, unless you intentionally migrate it into the newer `data/bordeaux/` layout.
 
 ## History Cleanup
 
@@ -152,7 +155,6 @@ git filter-repo \
   --path removed_residences.log.csv \
   --path daily_report_log.csv \
   --path available_residences.csv \
-  --path bordeaux_data \
   --path data/test_jabrane_main \
   --invert-paths
 git push --force --mirror

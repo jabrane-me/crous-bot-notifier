@@ -5,6 +5,10 @@ on:
   schedule:
     - cron: '0 1 * * *'
 
+concurrency:
+  group: crous-housing-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   run-scraper:
     runs-on: ubuntu-latest
@@ -15,6 +19,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Pull latest state
+        run: git pull --ff-only origin "${GITHUB_REF_NAME}"
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -26,16 +36,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Restore generated history cache
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            data/**/availability_changes.csv
-            data/**/unique_residences.csv
-          key: crous-generated-history-${{ github.run_id }}
-          restore-keys: |
-            crous-generated-history-
-
       - name: Run the housing check script
         env:
           BREVO_LOGIN: ${{ secrets.BREVO_LOGIN }}
@@ -44,26 +44,6 @@ jobs:
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
           FRIEND_TO_EMAIL: ${{ secrets.FRIEND_TO_EMAIL }}
         run: python crous_notifier.py
-
-      - name: Upload generated history artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: crous-generated-history-${{ github.run_id }}
-          path: |
-            data/**/availability_changes.csv
-            data/**/unique_residences.csv
-          if-no-files-found: ignore
-          retention-days: 30
-
-      - name: Save generated history cache
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            data/**/availability_changes.csv
-            data/**/unique_residences.csv
-          key: crous-generated-history-${{ github.run_id }}
 
       - name: Commit and push state files
         run: |

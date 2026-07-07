@@ -18,13 +18,5 @@ __pycache__/
 /availability_changes.csv
 /unique_residences.csv
 
-# Obsolete generated data layout
-/bordeaux_data/
-
-# Generated CROUS data. Keep only the small state needed by Actions.
-data/**
-!data/
-!data/*/
-!data/*/current_available.csv
-!data/*/daily_report_log.csv
-data/test_*/
+# Obsolete empty test output from an older config
+/data/test_jabrane_main/

@@ -1,11 +1,22 @@
 [
   {
-    "name": "TEST - Jabrane main CROUS page",
+    "name": "Bordeaux",
     "email_env": "TO_EMAIL",
-    "data_dir": "data/test_jabrane_main",
-    "cities": ["France main CROUS test"],
+    "data_dir": "data/bordeaux",
+    "cities": ["Bordeaux", "Pessac", "Talence", "Mérignac"],
     "urls": [
-      "https://trouverunlogement.lescrous.fr/tools/42/search"
+      "https://trouverunlogement.lescrous.fr/tools/43/search?bounds=-0.7587897_44.9161806_-0.5336838_44.7423986"
+    ],
+    "send_immediate_alert": true,
+    "send_daily_report": false
+  },
+  {
+    "name": "Strasbourg",
+    "email_env": "FRIEND_TO_EMAIL",
+    "data_dir": "data/strasbourg",
+    "cities": ["Strasbourg", "Illkirch-Graffenstaden", "Schiltigheim"],
+    "urls": [
+      "https://trouverunlogement.lescrous.fr/tools/43/search?bounds=7.6600000_48.6600000_7.8500000_48.4800000"
     ],
     "send_immediate_alert": true,
     "send_daily_report": false

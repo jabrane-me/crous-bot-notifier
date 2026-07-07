@@ -1,8 +1,31 @@
 # Python cache
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
 
-# IDE and OS specific files
+# Local environment and editor files
+.env
+.env.*
 .vscode/
 .idea/
 .DS_Store
+
+# Generated root-level CSVs from older bot versions
+/available_residences.csv
+/removed_residences.log.csv
+/daily_activity_log.csv
+/daily_report_log.csv
+/availability_changes.csv
+/unique_residences.csv
+/run_log.csv
+
+# Obsolete generated data layout
+/bordeaux_data/
+
+# Generated CROUS data. Keep only the small state needed by Actions.
+data/**
+!data/
+!data/*/
+!data/*/current_available.csv
+!data/*/daily_report_log.csv
+data/test_*/

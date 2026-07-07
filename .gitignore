@@ -20,3 +20,4 @@ __pycache__/
 
 # Obsolete empty test output from an older config
 /data/test_jabrane_main/
+/data/test_jabrane_main_email/

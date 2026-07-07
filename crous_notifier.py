@@ -24,7 +24,7 @@ BASE_URL = "https://trouverunlogement.lescrous.fr"
 CET = timezone(timedelta(hours=1), "CET")
 DEFAULT_TIMEOUT_SECONDS = 20
 RESULTS_PER_PAGE = 24
-DAILY_REPORT_TIME_WINDOW_CET = os.environ.get("DAILY_REPORT_TIME_WINDOW_CET", "23->00")
+DEFAULT_DAILY_REPORT_TIME_WINDOW = "23->00"
 SENDER_NAME = "CROUS BOT Notifier"
 
 BREVO_LOGIN = os.environ.get("BREVO_LOGIN")
@@ -62,6 +62,7 @@ class RecipientTarget:
     cities: list[str] = field(default_factory=list)
     send_immediate_alert: bool = True
     send_daily_report: bool = False
+    daily_report_time_window: str = DEFAULT_DAILY_REPORT_TIME_WINDOW
 
 
 def slugify(value: str) -> str:
@@ -73,8 +74,8 @@ def now_cet() -> datetime:
     return datetime.now(CET)
 
 
-def daily_report_window_hours() -> tuple[int, int]:
-    match = re.fullmatch(r"\s*(\d{1,2})\s*(?:->|-)\s*(\d{1,2})\s*", DAILY_REPORT_TIME_WINDOW_CET)
+def daily_report_window_hours(window: str = DEFAULT_DAILY_REPORT_TIME_WINDOW) -> tuple[int, int]:
+    match = re.fullmatch(r"\s*(\d{1,2})\s*(?:->|-)\s*(\d{1,2})\s*", window or "")
     if not match:
         return 23, 0
     start_hour, end_hour = int(match.group(1)), int(match.group(2))
@@ -83,8 +84,8 @@ def daily_report_window_hours() -> tuple[int, int]:
     return start_hour, end_hour
 
 
-def is_within_daily_report_window(timestamp_dt: datetime) -> bool:
-    start_hour, end_hour = daily_report_window_hours()
+def is_within_daily_report_window(timestamp_dt: datetime, window: str = DEFAULT_DAILY_REPORT_TIME_WINDOW) -> bool:
+    start_hour, end_hour = daily_report_window_hours(window)
     current_hour = timestamp_dt.hour
     if start_hour == end_hour:
         return True
@@ -449,7 +450,7 @@ def daily_report_already_sent(data_dir: Path, date_cet: str) -> bool:
 
 
 def maybe_send_daily_report(target: RecipientTarget, current: list[dict[str, str]], timestamp_dt: datetime, timestamp: str) -> None:
-    if not target.send_daily_report or not is_within_daily_report_window(timestamp_dt):
+    if not target.send_daily_report or not is_within_daily_report_window(timestamp_dt, target.daily_report_time_window):
         return
 
     date_cet = timestamp_dt.date().isoformat()
@@ -542,6 +543,7 @@ def load_targets(config_path: Path | None = None) -> list[RecipientTarget]:
             cities=config.get("cities", []),
             send_immediate_alert=bool(config.get("send_immediate_alert", True)),
             send_daily_report=bool(config.get("send_daily_report", False)),
+            daily_report_time_window=config.get("daily_report_time_window", DEFAULT_DAILY_REPORT_TIME_WINDOW),
         ))
     return targets
 

@@ -8,6 +8,7 @@
       "https://trouverunlogement.lescrous.fr/tools/42/search"
     ],
     "send_immediate_alert": true,
-    "send_daily_report": false
+    "send_daily_report": false,
+    "daily_report_time_window": "23->00"
   }
 ]

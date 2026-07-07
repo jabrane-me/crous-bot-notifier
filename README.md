@@ -8,7 +8,7 @@ A GitHub Actions bot that checks CROUS housing search URLs, emails immediate lis
 
 | Target | Email secret | Data folder | URL | Daily report |
 | --- | --- | --- | --- | --- |
-| `TEST - Jabrane main CROUS page` | `TO_EMAIL` | `data/test_jabrane_main_email` | `https://trouverunlogement.lescrous.fr/tools/42/search` | Off |
+| `TEST - Jabrane main CROUS page` | `TO_EMAIL` | `data/test_jabrane_main_email` | `https://trouverunlogement.lescrous.fr/tools/42/search` | Off, window `23->00` |
 
 This is intentional test mode. Switch the JSON back to Bordeaux/Strasbourg before using the bot for production monitoring.
 
@@ -25,6 +25,7 @@ Production targets should use:
 
 - `send_immediate_alert: true`
 - `send_daily_report: true`
+- `daily_report_time_window: "23->00"` or another per-target window
 
 ## What Gets Persisted
 
@@ -48,9 +49,9 @@ CROUS Bordeaux: +2 / -0 logements
 CROUS Strasbourg: +1 / -0 logements
 ```
 
-Daily reports are sent once per target per CET day when `send_daily_report` is true and the current time is inside `DAILY_REPORT_TIME_WINDOW_CET`.
+Daily reports are sent once per target per CET day when `send_daily_report` is true and the current time is inside that target's `daily_report_time_window`.
 
-Default report window:
+Default target report window:
 
 ```text
 23->00
@@ -58,7 +59,7 @@ Default report window:
 
 That means reports are eligible from 23:00 up to, but not including, 00:00 CET. The sent marker prevents repeats during that window.
 
-The workflow also uses GitHub Actions `concurrency` and pulls the latest branch state before scraping. If cron-job.org triggers runs every two minutes during the report window, runs queue instead of overlapping, and each queued run reads the latest committed `daily_report_log.csv` before deciding whether to send.
+The workflow also uses GitHub Actions `concurrency` and a shallow branch checkout before scraping. If cron-job.org triggers runs every two minutes during the report window, runs queue instead of overlapping, and each queued run checks out the latest committed `daily_report_log.csv` before deciding whether to send.
 
 Email bodies show the useful listing detail line, for example:
 
@@ -90,7 +91,7 @@ It:
 - runs `python crous_notifier.py`
 - exposes `BREVO_LOGIN`, `BREVO_API_KEY`, `FROM_EMAIL`, `TO_EMAIL`, and `FRIEND_TO_EMAIL`
 - serializes runs with GitHub Actions concurrency
-- pulls the latest branch state before scraping
+- uses shallow checkout to avoid fetching the full bloated history on every run
 - commits updated target-folder CSVs under `data/`
 
 Required repository secrets:

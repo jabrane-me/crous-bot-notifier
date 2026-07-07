@@ -24,7 +24,7 @@ BASE_URL = "https://trouverunlogement.lescrous.fr"
 CET = timezone(timedelta(hours=1), "CET")
 DEFAULT_TIMEOUT_SECONDS = 20
 RESULTS_PER_PAGE = 24
-DEFAULT_DAILY_REPORT_TIME_WINDOW = "23->00"
+DEFAULT_DAILY_REPORT_TIME_WINDOW = {"start": "23:30", "end": "00:00"}
 SENDER_NAME = "CROUS BOT Notifier"
 
 BREVO_LOGIN = os.environ.get("BREVO_LOGIN")
@@ -62,7 +62,7 @@ class RecipientTarget:
     cities: list[str] = field(default_factory=list)
     send_immediate_alert: bool = True
     send_daily_report: bool = False
-    daily_report_time_window: str = DEFAULT_DAILY_REPORT_TIME_WINDOW
+    daily_report_time_window: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_DAILY_REPORT_TIME_WINDOW))
 
 
 def slugify(value: str) -> str:
@@ -74,24 +74,46 @@ def now_cet() -> datetime:
     return datetime.now(CET)
 
 
-def daily_report_window_hours(window: str = DEFAULT_DAILY_REPORT_TIME_WINDOW) -> tuple[int, int]:
-    match = re.fullmatch(r"\s*(\d{1,2})\s*(?:->|-)\s*(\d{1,2})\s*", window or "")
+def parse_report_time(value: str, fallback: str) -> int:
+    match = re.fullmatch(r"\s*(\d{1,2}):(\d{2})\s*", str(value or ""))
     if not match:
-        return 23, 0
-    start_hour, end_hour = int(match.group(1)), int(match.group(2))
-    if not 0 <= start_hour <= 23 or not 0 <= end_hour <= 23:
-        return 23, 0
-    return start_hour, end_hour
+        return parse_report_time(fallback, "23:30") if value != fallback else 23 * 60 + 30
+    hour, minute = int(match.group(1)), int(match.group(2))
+    if not 0 <= hour <= 23 or not 0 <= minute <= 59:
+        return parse_report_time(fallback, "23:30") if value != fallback else 23 * 60 + 30
+    return hour * 60 + minute
 
 
-def is_within_daily_report_window(timestamp_dt: datetime, window: str = DEFAULT_DAILY_REPORT_TIME_WINDOW) -> bool:
-    start_hour, end_hour = daily_report_window_hours(window)
-    current_hour = timestamp_dt.hour
-    if start_hour == end_hour:
+def daily_report_window_minutes(window: dict[str, str] | list[str] | tuple[str, str] | str | None = None) -> tuple[int, int]:
+    if isinstance(window, dict):
+        start = window.get("start", DEFAULT_DAILY_REPORT_TIME_WINDOW["start"])
+        end = window.get("end", DEFAULT_DAILY_REPORT_TIME_WINDOW["end"])
+    elif isinstance(window, (list, tuple)) and len(window) >= 2:
+        start, end = str(window[0]), str(window[1])
+    elif isinstance(window, str):
+        parts = [part.strip() for part in window.split(",")]
+        if len(parts) == 2:
+            start, end = parts
+        else:
+            start = DEFAULT_DAILY_REPORT_TIME_WINDOW["start"]
+            end = DEFAULT_DAILY_REPORT_TIME_WINDOW["end"]
+    else:
+        start = DEFAULT_DAILY_REPORT_TIME_WINDOW["start"]
+        end = DEFAULT_DAILY_REPORT_TIME_WINDOW["end"]
+    return (
+        parse_report_time(start, DEFAULT_DAILY_REPORT_TIME_WINDOW["start"]),
+        parse_report_time(end, DEFAULT_DAILY_REPORT_TIME_WINDOW["end"]),
+    )
+
+
+def is_within_daily_report_window(timestamp_dt: datetime, window: dict[str, str] | list[str] | tuple[str, str] | str | None = None) -> bool:
+    start_minute, end_minute = daily_report_window_minutes(window)
+    current_minute = timestamp_dt.hour * 60 + timestamp_dt.minute
+    if start_minute == end_minute:
         return True
-    if start_hour < end_hour:
-        return start_hour <= current_hour < end_hour
-    return current_hour >= start_hour or current_hour < end_hour
+    if start_minute < end_minute:
+        return start_minute <= current_minute < end_minute
+    return current_minute >= start_minute or current_minute < end_minute
 
 
 def normalize_space(value: str) -> str:

@@ -32,7 +32,6 @@ jobs:
           path: |
             data/**/availability_changes.csv
             data/**/unique_residences.csv
-            data/**/run_log.csv
           key: crous-generated-history-${{ github.run_id }}
           restore-keys: |
             crous-generated-history-
@@ -54,7 +53,6 @@ jobs:
           path: |
             data/**/availability_changes.csv
             data/**/unique_residences.csv
-            data/**/run_log.csv
           if-no-files-found: ignore
           retention-days: 30
 
@@ -65,7 +63,6 @@ jobs:
           path: |
             data/**/availability_changes.csv
             data/**/unique_residences.csv
-            data/**/run_log.csv
           key: crous-generated-history-${{ github.run_id }}
 
       - name: Commit and push state files
@@ -73,7 +70,7 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           mkdir -p data
-          git add -A -- data
+          git add --all -- data
           if git diff --staged --quiet; then
             echo "No state changes to commit."
           else

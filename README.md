@@ -1,49 +1,62 @@
 # CROUS Housing Notifier Bot
 
-A GitHub Actions bot that checks CROUS housing search URLs, emails immediate listing changes, and sends one daily report per target.
+A GitHub Actions bot that checks CROUS housing search URLs, emails immediate listing changes, and can send one daily report per target.
+
+## Current Config
+
+`crous_targets.json` is currently set to the test target:
+
+| Target | Email secret | Data folder | URL | Daily report |
+| --- | --- | --- | --- | --- |
+| `TEST - Jabrane main CROUS page` | `TO_EMAIL` | `data/test_jabrane_main_email` | `https://trouverunlogement.lescrous.fr/tools/42/search` | Off |
+
+This is intentional test mode. Switch the JSON back to Bordeaux/Strasbourg before using the bot for production monitoring.
 
 ## Production Targets
 
-The production config is in `crous_targets.json` and should contain only:
+The production setup is:
 
 | Target | Email secret | Data folder | Cities | CROUS tool |
 | --- | --- | --- | --- | --- |
 | Bordeaux | `TO_EMAIL` | `data/bordeaux` | Bordeaux, Pessac, Talence, Mérignac | `/tools/43` |
 | Strasbourg | `FRIEND_TO_EMAIL` | `data/strasbourg` | Strasbourg, Illkirch-Graffenstaden, Schiltigheim | `/tools/43` |
 
-Both targets use:
+Production targets should use:
 
 - `send_immediate_alert: true`
 - `send_daily_report: true`
 
-Do not commit test targets to `crous_targets.json`.
-
 ## What Gets Persisted
 
-The bot writes several CSV files per target, but only the small files required for future runs should be committed:
+Only small state files should be committed:
 
 | File | Committed? | Purpose |
 | --- | --- | --- |
-| `current_available.csv` | Yes | Latest snapshot used to detect additions and removals. |
-| `daily_report_log.csv` | Yes | One-row-per-sent-report guard to avoid duplicate daily reports. |
-| `run_log.csv` | No | Uncapped execution history for scrape counts, errors, and recipient audit with masked emails. |
-| `availability_changes.csv` | No | Append-only add/remove history. |
-| `unique_residences.csv` | No | Historical catalog of listings seen over time. |
+| `current_available.csv` | Yes | Latest snapshot used to detect additions/removals. |
+| `daily_report_log.csv` | Yes | Minimal daily report marker with `sent_date,sent_time_cet`. |
+| `availability_changes.csv` | No | Generated add/remove history, stored by Actions cache/artifact only. |
+| `unique_residences.csv` | No | Generated historical listing catalog, stored by Actions cache/artifact only. |
 
-GitHub Actions restores and saves the non-committed history files with Actions cache, and also uploads them as a short-retention workflow artifact. This keeps useful operational history available without repeatedly committing growing generated logs.
-
-`run_log.csv` is intentionally not capped in code. It records every run, including runs with no listing changes, and masks recipient emails such as `me***@g***.com`.
+There is no execution-history CSV. The only report marker kept in Git is the tiny per-target `daily_report_log.csv`, because it prevents duplicate daily reports.
 
 ## Alerts And Reports
 
-Immediate alerts are sent when a target has added or removed listings. Subjects are clean city labels:
+Immediate alerts are sent when a target has added or removed listings. Subjects use the target name:
 
 ```text
 CROUS Bordeaux: +2 / -0 logements
 CROUS Strasbourg: +1 / -0 logements
 ```
 
-Daily reports are sent once per target per CET day when `send_daily_report` is true. By default, the report is eligible after 23:00 CET to match the old daily-report behavior. Override with `DAILY_REPORT_HOUR_CET` if needed.
+Daily reports are sent once per target per CET day when `send_daily_report` is true and the current time is inside `DAILY_REPORT_TIME_WINDOW_CET`.
+
+Default report window:
+
+```text
+23->00
+```
+
+That means reports are eligible from 23:00 up to, but not including, 00:00 CET. The sent marker prevents repeats during that window.
 
 Email bodies show the useful listing detail line, for example:
 
@@ -75,7 +88,7 @@ It:
 - runs `python crous_notifier.py`
 - exposes `BREVO_LOGIN`, `BREVO_API_KEY`, `FROM_EMAIL`, `TO_EMAIL`, and `FRIEND_TO_EMAIL`
 - caches/uploads bulky generated history files
-- commits only small state files under `data/`
+- commits only allowed small state files under `data/`
 
 Required repository secrets:
 
@@ -84,8 +97,8 @@ Required repository secrets:
 | `BREVO_LOGIN` | Brevo SMTP login. |
 | `BREVO_API_KEY` | Brevo SMTP key/password. |
 | `FROM_EMAIL` | Verified Brevo sender email. |
-| `TO_EMAIL` | Bordeaux recipient email. |
-| `FRIEND_TO_EMAIL` | Strasbourg recipient email. |
+| `TO_EMAIL` | Main/test recipient email. |
+| `FRIEND_TO_EMAIL` | Strasbourg recipient email when production config is restored. |
 
 ## cron-job.org
 
@@ -114,33 +127,19 @@ Body:
 
 Use a fine-grained GitHub token scoped to this repository with Actions read/write permission.
 
-## Brevo SMTP
-
-The bot sends through `smtp-relay.brevo.com:587`.
-
-1. Verify the sender email or domain in Brevo.
-2. Store the SMTP login in `BREVO_LOGIN`.
-3. Store the SMTP key/password in `BREVO_API_KEY`.
-4. Store the verified sender in `FROM_EMAIL`.
-5. Store recipient emails in `TO_EMAIL` and `FRIEND_TO_EMAIL`.
-
-Never commit real recipient emails or Brevo credentials.
-
 ## Cleanup Rules
 
 Do not commit:
 
-- root-level generated CSVs such as `daily_activity_log.csv`, `removed_residences.log.csv`, or `daily_report_log.csv`
+- root-level generated CSVs
 - obsolete `bordeaux_data/` output from older bot versions
-- `data/test_*/` folders
+- `data/test_*/` generated output folders
 - empty or old test CSV files
-- generated `run_log.csv`, `availability_changes.csv`, or `unique_residences.csv`
-
-Keep only the small production state files that let the next Action run compare current CROUS availability and avoid duplicate daily reports.
+- generated `availability_changes.csv` or `unique_residences.csv`
 
 ## History Cleanup
 
-This commit stops new bloat, but old generated CSVs still live in Git history until the repository history is rewritten.
+This PR stops new bloat, but old generated CSVs still live in Git history until the repository history is rewritten.
 
 Recommended cleanup with `git filter-repo`:
 
@@ -159,22 +158,4 @@ git filter-repo \
 git push --force --mirror
 ```
 
-Before force-pushing rewritten history, export any old production CSVs you still want to keep outside Git, tell collaborators to reclone, and pause cron-job.org so it does not dispatch while the rewrite is happening.
-
-If you do not need the old history, a fresh clean repository seeded with the current source files plus the latest production `current_available.csv` and `daily_report_log.csv` files is the simplest alternative.
-
-## Local Use
-
-Install dependencies:
-
-```bash
-python -m pip install -r requirements.txt
-```
-
-Run with recipient environment variables:
-
-```bash
-TO_EMAIL=you@example.com FRIEND_TO_EMAIL=friend@example.com python crous_notifier.py
-```
-
-Local runs may create ignored generated CSV files under `data/`.
+Before force-pushing rewritten history, export any old production CSVs you still want outside Git, tell collaborators to reclone, and pause cron-job.org so it does not dispatch during the rewrite.

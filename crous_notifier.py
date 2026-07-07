@@ -24,7 +24,7 @@ BASE_URL = "https://trouverunlogement.lescrous.fr"
 CET = timezone(timedelta(hours=1), "CET")
 DEFAULT_TIMEOUT_SECONDS = 20
 RESULTS_PER_PAGE = 24
-DAILY_REPORT_HOUR_CET = int(os.environ.get("DAILY_REPORT_HOUR_CET", "23"))
+DAILY_REPORT_TIME_WINDOW_CET = os.environ.get("DAILY_REPORT_TIME_WINDOW_CET", "23->00")
 SENDER_NAME = "CROUS BOT Notifier"
 
 BREVO_LOGIN = os.environ.get("BREVO_LOGIN")
@@ -39,7 +39,6 @@ HEADERS = {
 CURRENT_AVAILABLE_FILE = "current_available.csv"
 CHANGE_LOG_FILE = "availability_changes.csv"
 UNIQUE_HISTORY_FILE = "unique_residences.csv"
-RUN_LOG_FILE = "run_log.csv"
 DAILY_REPORT_LOG_FILE = "daily_report_log.csv"
 LEGACY_AVAILABLE_FILE = "available_residences.csv"
 DEFAULT_CONFIG_FILE = "crous_targets.json"
@@ -51,14 +50,7 @@ CSV_HEADERS = [
 ]
 CHANGE_HEADERS = ["timestamp_cet", "event", *CSV_HEADERS]
 UNIQUE_HEADERS = [*CSV_HEADERS, "last_event", "removed_at_cet", "seen_count"]
-RUN_LOG_HEADERS = [
-    "timestamp_cet", "target_name", "recipient_email", "scraped_count",
-    "current_count", "added_count", "removed_count", "status", "message",
-]
-DAILY_REPORT_HEADERS = [
-    "date_cet", "sent_at_cet", "target_name", "recipient_email",
-    "current_count", "status", "message",
-]
+DAILY_REPORT_HEADERS = ["sent_date", "sent_time_cet"]
 
 
 @dataclass(frozen=True)
@@ -79,6 +71,26 @@ def slugify(value: str) -> str:
 
 def now_cet() -> datetime:
     return datetime.now(CET)
+
+
+def daily_report_window_hours() -> tuple[int, int]:
+    match = re.fullmatch(r"\s*(\d{1,2})\s*(?:->|-)\s*(\d{1,2})\s*", DAILY_REPORT_TIME_WINDOW_CET)
+    if not match:
+        return 23, 0
+    start_hour, end_hour = int(match.group(1)), int(match.group(2))
+    if not 0 <= start_hour <= 23 or not 0 <= end_hour <= 23:
+        return 23, 0
+    return start_hour, end_hour
+
+
+def is_within_daily_report_window(timestamp_dt: datetime) -> bool:
+    start_hour, end_hour = daily_report_window_hours()
+    current_hour = timestamp_dt.hour
+    if start_hour == end_hour:
+        return True
+    if start_hour < end_hour:
+        return start_hour <= current_hour < end_hour
+    return current_hour >= start_hour or current_hour < end_hour
 
 
 def normalize_space(value: str) -> str:
@@ -429,25 +441,19 @@ def update_unique_history(data_dir: Path, current: list[dict[str, str]], added: 
     write_csv(history_path, sorted(history.values(), key=sort_key), UNIQUE_HEADERS)
 
 
-def write_run_log(data_dir: Path, row: dict[str, str]) -> None:
-    append_csv(data_dir / RUN_LOG_FILE, [row], RUN_LOG_HEADERS)
-
-
-def daily_report_already_sent(data_dir: Path, target_name: str, date_cet: str) -> bool:
+def daily_report_already_sent(data_dir: Path, date_cet: str) -> bool:
     for row in read_csv(data_dir / DAILY_REPORT_LOG_FILE):
-        if row.get("date_cet") == date_cet and row.get("target_name") == target_name and row.get("status") == "sent":
-            return True
         if row.get("sent_date") == date_cet:
             return True
     return False
 
 
 def maybe_send_daily_report(target: RecipientTarget, current: list[dict[str, str]], timestamp_dt: datetime, timestamp: str) -> None:
-    if not target.send_daily_report or timestamp_dt.hour < DAILY_REPORT_HOUR_CET:
+    if not target.send_daily_report or not is_within_daily_report_window(timestamp_dt):
         return
 
     date_cet = timestamp_dt.date().isoformat()
-    if daily_report_already_sent(target.data_dir, target.name, date_cet):
+    if daily_report_already_sent(target.data_dir, date_cet):
         return
 
     subject = f"CROUS {target.name}: rapport quotidien ({len(current)} logements)"
@@ -459,13 +465,8 @@ def maybe_send_daily_report(target: RecipientTarget, current: list[dict[str, str
 
     if sent:
         append_csv(target.data_dir / DAILY_REPORT_LOG_FILE, [{
-            "date_cet": date_cet,
-            "sent_at_cet": timestamp,
-            "target_name": target.name,
-            "recipient_email": redact_address(target.email),
-            "current_count": str(len(current)),
-            "status": "sent",
-            "message": "",
+            "sent_date": date_cet,
+            "sent_time_cet": timestamp_dt.time().isoformat(timespec="seconds"),
         }], DAILY_REPORT_HEADERS)
 
 
@@ -487,17 +488,7 @@ def process_target(target: RecipientTarget) -> None:
             scraped.extend(rows)
 
     if failed_urls and not scraped:
-        write_run_log(target.data_dir, {
-            "timestamp_cet": timestamp,
-            "target_name": target.name,
-            "recipient_email": redact_address(target.email),
-            "scraped_count": "0",
-            "current_count": str(len(previous)),
-            "added_count": "0",
-            "removed_count": "0",
-            "status": "error",
-            "message": f"All scrapes failed: {'; '.join(failed_urls)}",
-        })
+        print(f"{target.name}: all scrapes failed: {'; '.join(failed_urls)}")
         return
 
     current = merge_duplicates(scraped)
@@ -523,17 +514,8 @@ def process_target(target: RecipientTarget) -> None:
             print(f"Failed to send email to {redact_address(target.email)}: {exc}")
 
     maybe_send_daily_report(target, current, timestamp_dt, timestamp)
-    write_run_log(target.data_dir, {
-        "timestamp_cet": timestamp,
-        "target_name": target.name,
-        "recipient_email": redact_address(target.email),
-        "scraped_count": str(len(scraped)),
-        "current_count": str(len(current)),
-        "added_count": str(len(added)),
-        "removed_count": str(len(removed)),
-        "status": "ok" if not failed_urls else "partial",
-        "message": "; ".join(failed_urls),
-    })
+    if failed_urls:
+        print(f"{target.name}: partial scrape failures: {'; '.join(failed_urls)}")
     print(f"{target.name}: {len(current)} current, +{len(added)}, -{len(removed)}")
 
 

@@ -17,7 +17,6 @@ __pycache__/
 /daily_report_log.csv
 /availability_changes.csv
 /unique_residences.csv
-/run_log.csv
 
 # Obsolete generated data layout
 /bordeaux_data/

@@ -8,7 +8,7 @@
       "https://trouverunlogement.lescrous.fr/tools/43/search?bounds=-0.7587897_44.9161806_-0.5336838_44.7423986"
     ],
     "send_immediate_alert": true,
-    "send_daily_report": false
+    "send_daily_report": true
   },
   {
     "name": "Strasbourg",
@@ -19,6 +19,6 @@
       "https://trouverunlogement.lescrous.fr/tools/43/search?bounds=7.6600000_48.6600000_7.8500000_48.4800000"
     ],
     "send_immediate_alert": true,
-    "send_daily_report": false
+    "send_daily_report": true
   }
 ]

@@ -426,7 +426,13 @@ def create_email_body(target: RecipientTarget, added: list[dict[str, str]], remo
     return body + "</div></body></html>"
 
 
-def create_daily_report_body(target: RecipientTarget, current: list[dict[str, str]], timestamp: str) -> str:
+def create_daily_report_body(
+    target: RecipientTarget,
+    current: list[dict[str, str]],
+    added_today: list[dict[str, str]],
+    removed_today: list[dict[str, str]],
+    timestamp: str,
+) -> str:
     body = (
         "<html><body style='font-family:Arial,sans-serif;color:#222'>"
         "<div style='max-width:760px;margin:auto'>"
@@ -435,6 +441,10 @@ def create_daily_report_body(target: RecipientTarget, current: list[dict[str, st
         f"<h2>Disponibles maintenant ({len(current)})</h2>"
     )
     body += "".join(format_residence_html(row) for row in current) if current else "<p>Aucun logement disponible.</p>"
+    body += f"<h2 style='color:#198754'>Ajoutes aujourd'hui ({len(added_today)})</h2>"
+    body += "".join(format_residence_html(row, "#198754") for row in added_today) if added_today else "<p>Aucun ajout aujourd'hui.</p>"
+    body += f"<h2 style='color:#dc3545'>Retires aujourd'hui ({len(removed_today)})</h2>"
+    body += "".join(format_residence_html(row, "#dc3545") for row in removed_today) if removed_today else "<p>Aucun retrait aujourd'hui.</p>"
     return body + "</div></body></html>"
 
 
@@ -514,27 +524,47 @@ def daily_report_already_sent(data_dir: Path, target_name: str, date_cet: str) -
     for row in read_csv(data_dir / DAILY_REPORT_LOG_FILE):
         row_date = row.get("date_cet") or row.get("sent_date")
         row_target = row.get("target_name")
-        if row_date == date_cet and (not row_target or row_target == target_name):
+        status = row.get("status") or "sent"
+        if row_date == date_cet and status == "sent" and (not row_target or row_target == target_name):
             return True
     return False
+
+
+def changes_for_date(data_dir: Path, date_cet: str) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    added = []
+    removed = []
+    for row in read_csv(data_dir / CHANGE_LOG_FILE):
+        if not row.get("timestamp_cet", "").startswith(date_cet):
+            continue
+        event = row.get("event")
+        if event == "added":
+            added.append(row)
+        elif event == "removed":
+            removed.append(row)
+    return sorted(added, key=sort_key), sorted(removed, key=sort_key)
 
 
 def append_daily_report_marker(target: RecipientTarget, timestamp_dt: datetime, status: str, current_count: int) -> None:
     path = target.data_dir / DAILY_REPORT_LOG_FILE
     rows = []
+    marker_date = timestamp_dt.date().isoformat()
     for row in read_csv(path):
         row_date = row.get("date_cet") or row.get("sent_date")
         if not row_date:
             continue
+        row_target = row.get("target_name") or target.name
+        row_status = row.get("status") or "sent"
+        if row_date == marker_date and row_target == target.name and row_status != "sent":
+            continue
         rows.append({
             "date_cet": row_date,
             "time_cet": row.get("time_cet") or row.get("sent_time_cet") or "",
-            "target_name": row.get("target_name") or target.name,
-            "status": row.get("status") or "sent",
+            "target_name": row_target,
+            "status": row_status,
             "current_count": row.get("current_count") or "",
         })
     rows.append({
-        "date_cet": timestamp_dt.date().isoformat(),
+        "date_cet": marker_date,
         "time_cet": timestamp_dt.time().isoformat(timespec="seconds"),
         "target_name": target.name,
         "status": status,
@@ -548,7 +578,6 @@ def maybe_send_daily_report(
     current: list[dict[str, str]],
     timestamp_dt: datetime,
     timestamp: str,
-    covered_by_alert: bool = False,
 ) -> None:
     if not target.send_daily_report or not is_within_daily_report_window(timestamp_dt, target.daily_report_time_window):
         return
@@ -557,13 +586,10 @@ def maybe_send_daily_report(
     if daily_report_already_sent(target.data_dir, target.name, date_cet):
         return
 
-    if covered_by_alert:
-        append_daily_report_marker(target, timestamp_dt, "covered_by_alert", len(current))
-        return
-
-    subject = f"CROUS {target.name}: rapport quotidien ({len(current)} logements)"
+    added_today, removed_today = changes_for_date(target.data_dir, date_cet)
+    subject = f"CROUS {target.name}: rapport quotidien ({len(current)} disponibles, +{len(added_today)}, -{len(removed_today)})"
     try:
-        sent = send_email(target.email, subject, create_daily_report_body(target, current, timestamp))
+        sent = send_email(target.email, subject, create_daily_report_body(target, current, added_today, removed_today, timestamp))
     except Exception as exc:
         print(f"Failed to send daily report to {redact_address(target.email)}: {exc}")
         return
@@ -615,15 +641,14 @@ def process_target(target: RecipientTarget) -> None:
     update_unique_history(target.data_dir, current, added, removed, changed, timestamp)
     write_csv(snapshot_path, current, CSV_HEADERS)
 
-    alert_sent = False
     if (added or removed) and target.send_immediate_alert:
         subject = f"CROUS {target.name}: +{len(added)} / -{len(removed)} logements"
         try:
-            alert_sent = send_email(target.email, subject, create_email_body(target, added, removed, current))
+            send_email(target.email, subject, create_email_body(target, added, removed, current))
         except Exception as exc:
             print(f"Failed to send email to {redact_address(target.email)}: {exc}")
 
-    maybe_send_daily_report(target, current, timestamp_dt, timestamp, covered_by_alert=alert_sent)
+    maybe_send_daily_report(target, current, timestamp_dt, timestamp)
     if failed_urls:
         print(f"{target.name}: partial scrape failures: {'; '.join(failed_urls)}")
     print(f"{target.name}: {len(current)} current, +{len(added)}, -{len(removed)}, ~{len(changed)}")

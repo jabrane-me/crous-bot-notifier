@@ -57,7 +57,7 @@ Daily reports are evaluated per target. A report is sent only when:
 ```
 
 The example window means reports are eligible from 23:30 up to, but not including, 00:00 CET. Windows can differ per target.
-If an immediate alert is sent inside the daily report window, the bot records a `covered_by_alert` marker instead of sending a duplicate daily report in the same run.
+The daily report is an end-of-day summary: available listings first, then listings added today, then listings removed today.
 
 ## Immediate Alerts
 

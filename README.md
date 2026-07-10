@@ -69,17 +69,18 @@ The daily report is an end-of-day summary: available listings first, then listin
 
 Immediate alerts are sent when listings are added or removed for a target and `send_immediate_alert` is `true`.
 
-`immediate_alert_filter` is optional. When present, an added or removed listing is included in an immediate email only when its complete price and surface ranges fit inside the configured inclusive bounds. A listing with one price or surface value uses that value as both ends of its range. Each bound is optional, and price and surface conditions are combined with AND when both are configured.
+`immediate_alert_filter` is optional. When present, an immediate email is sent only when at least one added or removed listing has its complete price and surface ranges inside the configured inclusive bounds. A listing with one price or surface value uses that value as both ends of its range. Each bound is optional, and price and surface conditions are combined with AND when both are configured.
 
-The filter affects immediate emails only. The bot still keeps complete CSV state for every listing, and daily reports remain complete. Targets without `immediate_alert_filter` keep the original unfiltered behavior.
+The filter only gates whether an immediate email is sent. Once triggered, the email still includes every listing added or removed in that run and every currently available listing. A matching listing that simply remains available does not cause alerts for unrelated changes. The bot keeps complete CSV state, and daily reports remain complete. Targets without `immediate_alert_filter` keep the original unfiltered trigger behavior.
 
 Subject format:
 
 ```text
-CROUS Target label: +2 / -0 logements
+CROUS Target label: Residence name DISPONIBLE | 14 m² | 282 €
+CROUS Target label: Residence name RETIRÉ | 14 m² | 282 €
 ```
 
-Email bodies include price, listing details, address, and link. Internal residence IDs are not shown to recipients.
+Subjects prioritize a matching addition, then a matching removal. Email bodies include the complete changes and availability state with price, listing details, address, and link. Internal residence IDs are not shown to recipients.
 
 ## CSV State
 

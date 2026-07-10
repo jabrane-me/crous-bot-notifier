@@ -522,6 +522,31 @@ def listing_details_line(residence: dict[str, str]) -> str:
     return " | ".join(part for part in parts if part)
 
 
+def create_immediate_alert_subject(
+    target: RecipientTarget,
+    matching_added: list[dict[str, str]],
+    matching_removed: list[dict[str, str]],
+) -> str:
+    if matching_added:
+        residence = matching_added[0]
+        status = "DISPONIBLE"
+    else:
+        residence = matching_removed[0]
+        status = "RETIRÉ"
+
+    name = normalize_space(residence.get("name", "")) or "LOGEMENT"
+    parts = [f"CROUS {target.name}: {name} {status}"]
+    parts.extend(
+        value
+        for value in [
+            normalize_space(residence.get("surface_text", "")),
+            normalize_space(residence.get("price_text", "")),
+        ]
+        if value
+    )
+    return " | ".join(parts)
+
+
 def format_residence_html(residence: dict[str, str], color: str = "#111") -> str:
     price = residence.get("price_text") or "Prix non indique"
     detail_line = listing_details_line(residence)
@@ -771,13 +796,12 @@ def process_target(target: RecipientTarget) -> None:
         alert_added = listings_for_immediate_alert(added, target.immediate_alert_filter)
         alert_removed = listings_for_immediate_alert(removed, target.immediate_alert_filter)
         if alert_added or alert_removed:
-            alert_current = listings_for_immediate_alert(current, target.immediate_alert_filter)
-            subject = f"CROUS {target.name}: +{len(alert_added)} / -{len(alert_removed)} logements"
+            subject = create_immediate_alert_subject(target, alert_added, alert_removed)
             try:
                 send_email(
                     target.email,
                     subject,
-                    create_email_body(target, alert_added, alert_removed, alert_current),
+                    create_email_body(target, added, removed, current),
                 )
             except Exception as exc:
                 print(f"Failed to send email to {redact_address(target.email)}: {exc}")

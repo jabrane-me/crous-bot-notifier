@@ -28,6 +28,12 @@ Targets are configured in `crous_targets.json`. Each target has its own label, r
       "https://trouverunlogement.lescrous.fr/tools/45/search?bounds=..."
     ],
     "send_immediate_alert": true,
+    "immediate_alert_filter": {
+      "price_min_eur": 260,
+      "price_max_eur": 300,
+      "surface_min_m2": 13,
+      "surface_max_m2": 16
+    },
     "send_daily_report": true,
     "daily_report_time_window": {
       "start": "23:30",
@@ -62,6 +68,10 @@ The daily report is an end-of-day summary: available listings first, then listin
 ## Immediate Alerts
 
 Immediate alerts are sent when listings are added or removed for a target and `send_immediate_alert` is `true`.
+
+`immediate_alert_filter` is optional. When present, an added or removed listing is included in an immediate email only when its complete price and surface ranges fit inside the configured inclusive bounds. A listing with one price or surface value uses that value as both ends of its range. Each bound is optional, and price and surface conditions are combined with AND when both are configured.
+
+The filter affects immediate emails only. The bot still keeps complete CSV state for every listing, and daily reports remain complete. Targets without `immediate_alert_filter` keep the original unfiltered behavior.
 
 Subject format:
 

@@ -52,6 +52,20 @@ CHANGE_HEADERS = ["timestamp_cet", "event", *CSV_HEADERS]
 UNIQUE_HEADERS = [*CSV_HEADERS, "last_event", "removed_at_cet", "seen_count"]
 DAILY_REPORT_HEADERS = ["date_cet", "time_cet", "target_name", "status", "current_count"]
 LISTING_CONTENT_HEADERS = [header for header in CSV_HEADERS if header not in {"first_seen_cet", "last_seen_cet"}]
+IMMEDIATE_ALERT_FILTER_FIELDS = {
+    "price_min_eur",
+    "price_max_eur",
+    "surface_min_m2",
+    "surface_max_m2",
+}
+
+
+@dataclass(frozen=True)
+class ImmediateAlertFilter:
+    price_min_eur: float | None = None
+    price_max_eur: float | None = None
+    surface_min_m2: float | None = None
+    surface_max_m2: float | None = None
 
 
 @dataclass(frozen=True)
@@ -64,6 +78,7 @@ class RecipientTarget:
     send_immediate_alert: bool = True
     send_daily_report: bool = False
     daily_report_time_window: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_DAILY_REPORT_TIME_WINDOW))
+    immediate_alert_filter: ImmediateAlertFilter | None = None
 
 
 def slugify(value: str) -> str:
@@ -73,6 +88,117 @@ def slugify(value: str) -> str:
 
 def now_cet() -> datetime:
     return datetime.now(CET)
+
+
+def parse_filter_bound(value: object, field_name: str, target_name: str) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise ValueError(f"{target_name}: immediate_alert_filter.{field_name} must be a number")
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{target_name}: immediate_alert_filter.{field_name} must be a number") from exc
+    if not math.isfinite(parsed):
+        raise ValueError(f"{target_name}: immediate_alert_filter.{field_name} must be a finite number")
+    return parsed
+
+
+def parse_immediate_alert_filter(value: object, target_name: str) -> ImmediateAlertFilter | None:
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise ValueError(f"{target_name}: immediate_alert_filter must be a JSON object")
+
+    unknown_fields = set(value) - IMMEDIATE_ALERT_FILTER_FIELDS
+    if unknown_fields:
+        fields = ", ".join(sorted(unknown_fields))
+        raise ValueError(f"{target_name}: unknown immediate_alert_filter field(s): {fields}")
+
+    alert_filter = ImmediateAlertFilter(**{
+        field_name: parse_filter_bound(value.get(field_name), field_name, target_name)
+        for field_name in IMMEDIATE_ALERT_FILTER_FIELDS
+    })
+    if all(getattr(alert_filter, field_name) is None for field_name in IMMEDIATE_ALERT_FILTER_FIELDS):
+        raise ValueError(f"{target_name}: immediate_alert_filter must contain at least one numeric bound")
+    if (
+        alert_filter.price_min_eur is not None
+        and alert_filter.price_max_eur is not None
+        and alert_filter.price_min_eur > alert_filter.price_max_eur
+    ):
+        raise ValueError(f"{target_name}: immediate alert minimum price cannot exceed maximum price")
+    if (
+        alert_filter.surface_min_m2 is not None
+        and alert_filter.surface_max_m2 is not None
+        and alert_filter.surface_min_m2 > alert_filter.surface_max_m2
+    ):
+        raise ValueError(f"{target_name}: immediate alert minimum surface cannot exceed maximum surface")
+    return alert_filter
+
+
+def parse_listing_number(value: str | None) -> float | None:
+    try:
+        parsed = float(value) if value not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed is not None and math.isfinite(parsed) else None
+
+
+def listing_range_within_bounds(
+    residence: dict[str, str],
+    minimum_field: str,
+    maximum_field: str,
+    minimum_allowed: float | None,
+    maximum_allowed: float | None,
+) -> bool:
+    if minimum_allowed is None and maximum_allowed is None:
+        return True
+
+    listing_minimum = parse_listing_number(residence.get(minimum_field))
+    listing_maximum = parse_listing_number(residence.get(maximum_field))
+    if listing_minimum is None and listing_maximum is None:
+        return False
+    if listing_minimum is None:
+        listing_minimum = listing_maximum
+    if listing_maximum is None:
+        listing_maximum = listing_minimum
+
+    return (
+        (minimum_allowed is None or listing_minimum >= minimum_allowed)
+        and (maximum_allowed is None or listing_maximum <= maximum_allowed)
+    )
+
+
+def listing_matches_immediate_alert_filter(
+    residence: dict[str, str],
+    alert_filter: ImmediateAlertFilter | None,
+) -> bool:
+    if alert_filter is None:
+        return True
+    return listing_range_within_bounds(
+        residence,
+        "price_min_eur",
+        "price_max_eur",
+        alert_filter.price_min_eur,
+        alert_filter.price_max_eur,
+    ) and listing_range_within_bounds(
+        residence,
+        "surface_min_m2",
+        "surface_max_m2",
+        alert_filter.surface_min_m2,
+        alert_filter.surface_max_m2,
+    )
+
+
+def listings_for_immediate_alert(
+    residences: list[dict[str, str]],
+    alert_filter: ImmediateAlertFilter | None,
+) -> list[dict[str, str]]:
+    return [
+        residence
+        for residence in residences
+        if listing_matches_immediate_alert_filter(residence, alert_filter)
+    ]
 
 
 def parse_report_time(value: str, fallback: str) -> int:
@@ -641,12 +767,22 @@ def process_target(target: RecipientTarget) -> None:
     update_unique_history(target.data_dir, current, added, removed, changed, timestamp)
     write_csv(snapshot_path, current, CSV_HEADERS)
 
-    if (added or removed) and target.send_immediate_alert:
-        subject = f"CROUS {target.name}: +{len(added)} / -{len(removed)} logements"
-        try:
-            send_email(target.email, subject, create_email_body(target, added, removed, current))
-        except Exception as exc:
-            print(f"Failed to send email to {redact_address(target.email)}: {exc}")
+    if target.send_immediate_alert:
+        alert_added = listings_for_immediate_alert(added, target.immediate_alert_filter)
+        alert_removed = listings_for_immediate_alert(removed, target.immediate_alert_filter)
+        if alert_added or alert_removed:
+            alert_current = listings_for_immediate_alert(current, target.immediate_alert_filter)
+            subject = f"CROUS {target.name}: +{len(alert_added)} / -{len(alert_removed)} logements"
+            try:
+                send_email(
+                    target.email,
+                    subject,
+                    create_email_body(target, alert_added, alert_removed, alert_current),
+                )
+            except Exception as exc:
+                print(f"Failed to send email to {redact_address(target.email)}: {exc}")
+        elif (added or removed) and target.immediate_alert_filter is not None:
+            print(f"{target.name}: immediate alert suppressed; no changed listing matched the filter")
 
     maybe_send_daily_report(target, current, timestamp_dt, timestamp)
     if failed_urls:
@@ -678,6 +814,7 @@ def load_targets(config_path: Path | None = None) -> list[RecipientTarget]:
             send_immediate_alert=bool(config.get("send_immediate_alert", True)),
             send_daily_report=bool(config.get("send_daily_report", False)),
             daily_report_time_window=config.get("daily_report_time_window", DEFAULT_DAILY_REPORT_TIME_WINDOW),
+            immediate_alert_filter=parse_immediate_alert_filter(config.get("immediate_alert_filter"), name),
         ))
     return targets
 

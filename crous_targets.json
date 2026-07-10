@@ -12,6 +12,12 @@
       "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=-0.6471483_44.7938687_-0.5854508_44.7423986&locationName=Gradignan+%2833170%29"
     ],
     "send_immediate_alert": true,
+    "immediate_alert_filter": {
+      "price_min_eur": 260,
+      "price_max_eur": 300,
+      "surface_min_m2": 13,
+      "surface_max_m2": 16
+    },
     "send_daily_report": true,
     "daily_report_time_window": {
       "start": "23:30",

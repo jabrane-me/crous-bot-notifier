@@ -14,9 +14,9 @@
     "send_immediate_alert": true,
     "immediate_alert_filter": {
       "price_min_eur": 260,
-      "price_max_eur": 300,
+      "price_max_eur": 340,
       "surface_min_m2": 13,
-      "surface_max_m2": 16
+      "surface_max_m2": 21
     },
     "send_daily_report": true,
     "daily_report_time_window": {

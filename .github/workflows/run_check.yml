@@ -40,7 +40,7 @@ jobs:
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
           FRIEND_TO_EMAIL: ${{ secrets.FRIEND_TO_EMAIL }}
-        run: python authenticated_runner.py
+        run: python crous_notifier.py
 
       - name: Commit and push state files
         run: |

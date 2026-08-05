@@ -42,6 +42,7 @@ UNIQUE_HISTORY_FILE = "unique_residences.csv"
 DAILY_REPORT_LOG_FILE = "daily_report_log.csv"
 LEGACY_AVAILABLE_FILE = "available_residences.csv"
 DEFAULT_CONFIG_FILE = "crous_targets.json"
+COOKIES_FILE = Path("cookies.json")
 
 CSV_HEADERS = [
     "residence_id", "name", "housing_type", "price_text", "price_min_eur",
@@ -356,6 +357,48 @@ def set_query_param(url: str, key: str, value: str) -> str:
     return urlunparse(parsed._replace(query=urlencode(query)))
 
 
+def create_crous_session() -> requests.Session:
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    if not COOKIES_FILE.exists():
+        return session
+
+    try:
+        with COOKIES_FILE.open(encoding="utf-8") as handle:
+            cookie_data = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Could not load {COOKIES_FILE}: {exc}")
+        return session
+
+    cookies = cookie_data.get("cookies", []) if isinstance(cookie_data, dict) else cookie_data
+    if not isinstance(cookies, list):
+        print(f"Could not load {COOKIES_FILE}: expected a JSON cookie array")
+        return session
+
+    for cookie in cookies:
+        if not isinstance(cookie, dict) or not cookie.get("name"):
+            continue
+        session.cookies.set(
+            str(cookie["name"]),
+            str(cookie.get("value", "")),
+            domain=str(cookie.get("domain") or urlparse(BASE_URL).hostname),
+            path=str(cookie.get("path") or "/"),
+        )
+    return session
+
+
+def is_crous_authenticated(session: requests.Session) -> bool:
+    try:
+        response = session.get(f"{BASE_URL}/api/fr/user", timeout=DEFAULT_TIMEOUT_SECONDS)
+        response.raise_for_status()
+        user = response.json()
+    except (requests.RequestException, ValueError):
+        return False
+
+    identity = user.get("identity") if isinstance(user, dict) else None
+    return isinstance(identity, dict) and bool(identity.get("firstName"))
+
+
 def extract_card_details(card) -> str:
     return " | ".join(
         text for item in card.select(".fr-card__detail")
@@ -402,11 +445,10 @@ def card_to_residence(card, source_url: str, timestamp: str) -> dict[str, str] |
     }
 
 
-def scrape_crous_page(url: str, timestamp: str) -> list[dict[str, str]] | None:
+def scrape_crous_page(url: str, timestamp: str, session: requests.Session) -> list[dict[str, str]] | None:
     residences: list[dict[str, str]] = []
-    session = requests.Session()
     try:
-        response = session.get(url, headers=HEADERS, timeout=DEFAULT_TIMEOUT_SECONDS)
+        response = session.get(url, timeout=DEFAULT_TIMEOUT_SECONDS)
         response.raise_for_status()
         soup = BeautifulSoup(response.content, "html.parser")
 
@@ -420,7 +462,7 @@ def scrape_crous_page(url: str, timestamp: str) -> list[dict[str, str]] | None:
             page_url = set_query_param(url, "page", str(page_num)) if page_num > 1 else url
             page_soup = soup
             if page_num > 1:
-                page_response = session.get(page_url, headers=HEADERS, timeout=DEFAULT_TIMEOUT_SECONDS)
+                page_response = session.get(page_url, timeout=DEFAULT_TIMEOUT_SECONDS)
                 page_response.raise_for_status()
                 page_soup = BeautifulSoup(page_response.content, "html.parser")
             for card in page_soup.select(".fr-card"):
@@ -749,7 +791,7 @@ def maybe_send_daily_report(
         append_daily_report_marker(target, timestamp_dt, "sent", len(current))
 
 
-def process_target(target: RecipientTarget) -> None:
+def process_target(target: RecipientTarget, session: requests.Session) -> None:
     timestamp_dt = now_cet()
     timestamp = timestamp_dt.isoformat(timespec="seconds")
     target.data_dir.mkdir(parents=True, exist_ok=True)
@@ -760,7 +802,7 @@ def process_target(target: RecipientTarget) -> None:
     scraped: list[dict[str, str]] = []
     failed_urls = []
     for url in target.urls:
-        rows = scrape_crous_page(url, timestamp)
+        rows = scrape_crous_page(url, timestamp, session)
         if rows is None:
             failed_urls.append(url)
         else:
@@ -844,11 +886,22 @@ def load_targets(config_path: Path | None = None) -> list[RecipientTarget]:
 
 
 def main() -> None:
+    session = create_crous_session()
+    authenticated = is_crous_authenticated(session)
+    if not authenticated:
+        session = requests.Session()
+        session.headers.update(HEADERS)
+
     for target in load_targets():
         if not target.email:
             print(f"Skipping {target.name}: no recipient email configured.")
             continue
-        process_target(target)
+        process_target(target, session)
+
+    status = "AUTHENTICATED" if authenticated and is_crous_authenticated(session) else "PUBLIC"
+    print("\n" + "=" * 72)
+    print(f"CROUS SCRAPING STATUS: {status}")
+    print("=" * 72)
 
 
 if __name__ == "__main__":

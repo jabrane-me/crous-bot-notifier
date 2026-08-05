@@ -30,6 +30,7 @@ SENDER_NAME = "CROUS BOT Notifier"
 BREVO_LOGIN = os.environ.get("BREVO_LOGIN")
 BREVO_API_KEY = os.environ.get("BREVO_API_KEY")
 FROM_EMAIL = os.environ.get("FROM_EMAIL")
+TO_EMAIL = os.environ.get("TO_EMAIL")
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
@@ -43,6 +44,8 @@ DAILY_REPORT_LOG_FILE = "daily_report_log.csv"
 LEGACY_AVAILABLE_FILE = "available_residences.csv"
 DEFAULT_CONFIG_FILE = "crous_targets.json"
 COOKIES_FILE = Path("cookies.json")
+AUTH_STATE_FILE = Path("data/authentication_state.json")
+AUTH_EMAIL_PREFIX = "U"
 
 CSV_HEADERS = [
     "residence_id", "name", "housing_type", "price_text", "price_min_eur",
@@ -399,6 +402,50 @@ def is_crous_authenticated(session: requests.Session) -> bool:
     return isinstance(identity, dict) and bool(identity.get("firstName"))
 
 
+def read_authentication_state() -> bool:
+    if not AUTH_STATE_FILE.exists():
+        return False
+    try:
+        with AUTH_STATE_FILE.open(encoding="utf-8") as handle:
+            state = json.load(handle)
+    except (OSError, json.JSONDecodeError):
+        return False
+    return bool(state.get("expired_notified", False)) if isinstance(state, dict) else False
+
+
+def write_authentication_state(expired_notified: bool) -> None:
+    AUTH_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with AUTH_STATE_FILE.open("w", encoding="utf-8") as handle:
+        json.dump({"expired_notified": expired_notified}, handle, indent=2)
+        handle.write("\n")
+
+
+def handle_authentication_transition(authenticated: bool) -> None:
+    expired_notified = read_authentication_state()
+    if authenticated:
+        if expired_notified:
+            write_authentication_state(False)
+        return
+
+    if expired_notified:
+        return
+
+    body = (
+        "<html><body style='font-family:Arial,sans-serif;color:#222'>"
+        "<h2>CROUS authentication expired</h2>"
+        "<p>The saved CROUS cookies are no longer authenticated.</p>"
+        "<p>The notifier has automatically continued using the public market.</p>"
+        "</body></html>"
+    )
+    try:
+        sent = send_email(TO_EMAIL or "", "CROUS authentication expired", body)
+    except Exception as exc:
+        print(f"Failed to send cookie-expiry email: {exc}")
+        sent = False
+    if sent:
+        write_authentication_state(True)
+
+
 def extract_card_details(card) -> str:
     return " | ".join(
         text for item in card.select(".fr-card__detail")
@@ -645,8 +692,10 @@ def send_email(to_email: str, subject: str, html_body: str) -> bool:
     if not all([BREVO_LOGIN, BREVO_API_KEY, FROM_EMAIL, to_email]):
         print("Email credentials or recipient missing; skipping email.")
         return False
+
+    prefixed_subject = subject if subject.startswith(("A | ", "U | ")) else f"{AUTH_EMAIL_PREFIX} | {subject}"
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = Header(subject, "utf-8")
+    msg["Subject"] = Header(prefixed_subject, "utf-8")
     msg["From"] = f"{SENDER_NAME} <{FROM_EMAIL}>"
     msg["To"] = to_email
     msg.attach(MIMEText(html_body, "html", "utf-8"))
@@ -654,7 +703,7 @@ def send_email(to_email: str, subject: str, html_body: str) -> bool:
         server.starttls()
         server.login(BREVO_LOGIN, BREVO_API_KEY)
         server.sendmail(FROM_EMAIL, [to_email], msg.as_string())
-    print(f"Sent email to {redact_address(to_email)}: {subject}")
+    print(f"Sent email to {redact_address(to_email)}: {prefixed_subject}")
     return True
 
 
@@ -886,11 +935,17 @@ def load_targets(config_path: Path | None = None) -> list[RecipientTarget]:
 
 
 def main() -> None:
+    global AUTH_EMAIL_PREFIX
+
     session = create_crous_session()
     authenticated = is_crous_authenticated(session)
+    AUTH_EMAIL_PREFIX = "A" if authenticated else "U"
+
     if not authenticated:
         session = requests.Session()
         session.headers.update(HEADERS)
+
+    handle_authentication_transition(authenticated)
 
     for target in load_targets():
         if not target.email:

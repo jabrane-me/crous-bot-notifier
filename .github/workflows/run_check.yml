@@ -70,8 +70,8 @@ jobs:
                       print(f"Loaded {len(cookies)} CROUS cookie(s) from the dashboard API.")
                   else:
                       print("Dashboard API returned an invalid cookie collection; using public access.")
-              except (requests.RequestException, ValueError) as exc:
-                  print(f"Could not retrieve CROUS cookies from the dashboard API; using public access: {exc}")
+              except (requests.RequestException, ValueError):
+                  print("Could not retrieve CROUS cookies from the dashboard API; using public access.")
           else:
               print("CROUS_COOKIES_API_URL is not configured; using public access.")
 

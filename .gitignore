@@ -10,6 +10,9 @@ __pycache__/
 .idea/
 .DS_Store
 
+# Runtime CROUS credentials
+/cookies.json
+
 # Generated root-level CSVs from older bot versions
 /available_residences.csv
 /removed_residences.log.csv

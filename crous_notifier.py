@@ -616,6 +616,17 @@ def create_immediate_alert_subject(
     matching_added: list[dict[str, str]],
     matching_removed: list[dict[str, str]],
 ) -> str:
+    total_changes = len(matching_added) + len(matching_removed)
+    if total_changes > 1:
+        counts = []
+        if matching_added:
+            count = len(matching_added)
+            counts.append(f"+{count} ajouté{'s' if count > 1 else ''}")
+        if matching_removed:
+            count = len(matching_removed)
+            counts.append(f"-{count} retiré{'s' if count > 1 else ''}")
+        return f"CROUS {target.name}: {', '.join(counts)}"
+
     if matching_added:
         residence = matching_added[0]
         status = "DISPONIBLE"

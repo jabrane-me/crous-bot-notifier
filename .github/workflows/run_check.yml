@@ -40,7 +40,86 @@ jobs:
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
           TO_EMAIL: ${{ secrets.TO_EMAIL }}
           FRIEND_TO_EMAIL: ${{ secrets.FRIEND_TO_EMAIL }}
-        run: python crous_notifier.py
+          CROUS_COOKIES_API_URL: ${{ secrets.CROUS_COOKIES_API_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          import requests
+
+          api_url = os.environ.get("CROUS_COOKIES_API_URL", "").strip()
+          payload = {"cookies": []}
+
+          if api_url:
+              try:
+                  response = requests.get(
+                      api_url,
+                      headers={"Accept": "application/json"},
+                      timeout=20,
+                  )
+                  response.raise_for_status()
+                  candidate = response.json()
+                  cookies = candidate.get("cookies", []) if isinstance(candidate, dict) else candidate
+                  if isinstance(cookies, list):
+                      payload = {"cookies": cookies}
+                      print(f"Loaded {len(cookies)} CROUS cookie(s) from the dashboard API.")
+                  else:
+                      print("Dashboard API returned an invalid cookie collection; using public access.")
+              except (requests.RequestException, ValueError) as exc:
+                  print(f"Could not retrieve CROUS cookies from the dashboard API; using public access: {exc}")
+          else:
+              print("CROUS_COOKIES_API_URL is not configured; using public access.")
+
+          Path("cookies.json").write_text(json.dumps(payload), encoding="utf-8")
+          PY
+
+          AUTH_USER=$(python - <<'PY'
+          import json
+          import requests
+
+          from crous_notifier import BASE_URL, DEFAULT_TIMEOUT_SECONDS, HEADERS
+
+          session = requests.Session()
+          session.headers.update(HEADERS)
+
+          try:
+              payload = json.loads(open("cookies.json", encoding="utf-8").read())
+              cookies = payload.get("cookies", []) if isinstance(payload, dict) else payload
+              for cookie in cookies if isinstance(cookies, list) else []:
+                  if not isinstance(cookie, dict) or not cookie.get("name"):
+                      continue
+                  session.cookies.set(
+                      str(cookie["name"]),
+                      str(cookie.get("value", "")),
+                      domain=str(cookie.get("domain") or "trouverunlogement.lescrous.fr"),
+                      path=str(cookie.get("path") or "/"),
+                  )
+
+              response = session.get(f"{BASE_URL}/api/fr/user", timeout=DEFAULT_TIMEOUT_SECONDS)
+              response.raise_for_status()
+              data = response.json()
+              identity = data.get("identity", {}) if isinstance(data, dict) else {}
+              name = f"{identity.get('firstName', '')} {identity.get('lastName', '')}".strip()
+              print(name)
+          except Exception:
+              print("")
+          PY
+          )
+
+          python crous_notifier.py | while IFS= read -r line; do
+            if [[ "$line" == "CROUS SCRAPING STATUS: AUTHENTICATED" && -n "$AUTH_USER" ]]; then
+              echo "$line — $AUTH_USER"
+            else
+              echo "$line"
+            fi
+          done
+
+          rm -f cookies.json
 
       - name: Commit and push state files
         run: |

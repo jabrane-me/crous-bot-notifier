@@ -45,50 +45,74 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Fetch the dashboard cookie export. A transient dashboard/API failure must
+          # not be confused with genuinely empty/expired CROUS cookies.
           python - <<'PY'
           import json
           import os
+          import time
           from pathlib import Path
 
           import requests
 
           api_url = os.environ.get("CROUS_COOKIES_API_URL", "").strip()
           payload = {"cookies": []}
+          source_status = "unavailable"
 
-          if api_url:
-              try:
-                  response = requests.get(
-                      api_url,
-                      headers={"Accept": "application/json"},
-                      timeout=20,
-                  )
-                  response.raise_for_status()
-                  candidate = response.json()
-                  cookies = candidate.get("cookies", []) if isinstance(candidate, dict) else candidate
-                  if isinstance(cookies, list):
-                      payload = {"cookies": cookies}
-                      print(f"Loaded {len(cookies)} CROUS cookie(s) from the dashboard API.")
-                  else:
-                      print("Dashboard API returned an invalid cookie collection; using public access.")
-              except (requests.RequestException, ValueError):
-                  print("Could not retrieve CROUS cookies from the dashboard API; using public access.")
+          if not api_url:
+              print("CROUS cookie API is not configured; public access will be used without an expiry alert.")
           else:
-              print("CROUS_COOKIES_API_URL is not configured; using public access.")
+              for attempt in range(1, 4):
+                  try:
+                      response = requests.get(
+                          api_url,
+                          headers={"Accept": "application/json"},
+                          timeout=20,
+                      )
+                      response.raise_for_status()
+                      candidate = response.json()
+                      cookies = candidate.get("cookies", []) if isinstance(candidate, dict) else candidate
+                      if not isinstance(cookies, list):
+                          raise ValueError("invalid cookie collection")
+
+                      payload = {"cookies": cookies}
+                      source_status = "ok" if cookies else "empty"
+                      print(f"Loaded {len(cookies)} CROUS cookie(s) from the dashboard API.")
+                      break
+                  except (requests.RequestException, ValueError):
+                      if attempt < 3:
+                          print(f"Dashboard cookie API check {attempt}/3 failed; retrying.")
+                          time.sleep(2)
+                      else:
+                          print("Dashboard cookie API could not be reached reliably after 3 attempts; using public access without an expiry alert.")
 
           Path("cookies.json").write_text(json.dumps(payload), encoding="utf-8")
+          Path(".crous_cookie_source_status").write_text(source_status, encoding="utf-8")
           PY
 
-          AUTH_USER=$(python - <<'PY'
+          # Probe the authenticated CROUS user endpoint independently three times.
+          # Only three clean unauthenticated responses count as confirmed expiry.
+          python - <<'PY'
           import json
+          import time
+          from pathlib import Path
+
           import requests
 
           from crous_notifier import BASE_URL, DEFAULT_TIMEOUT_SECONDS, HEADERS
 
-          session = requests.Session()
-          session.headers.update(HEADERS)
+          source_status = Path(".crous_cookie_source_status").read_text(encoding="utf-8").strip()
+          result = {"status": "unknown", "user": ""}
 
-          try:
-              payload = json.loads(open("cookies.json", encoding="utf-8").read())
+          if source_status in {"ok", "empty"}:
+              session = requests.Session()
+              session.headers.update(HEADERS)
+
+              try:
+                  payload = json.loads(Path("cookies.json").read_text(encoding="utf-8"))
+              except (OSError, json.JSONDecodeError):
+                  payload = {"cookies": []}
+
               cookies = payload.get("cookies", []) if isinstance(payload, dict) else payload
               for cookie in cookies if isinstance(cookies, list) else []:
                   if not isinstance(cookie, dict) or not cookie.get("name"):
@@ -100,26 +124,127 @@ jobs:
                       path=str(cookie.get("path") or "/"),
                   )
 
-              response = session.get(f"{BASE_URL}/api/fr/user", timeout=DEFAULT_TIMEOUT_SECONDS)
-              response.raise_for_status()
-              data = response.json()
-              identity = data.get("identity", {}) if isinstance(data, dict) else {}
-              name = f"{identity.get('firstName', '')} {identity.get('lastName', '')}".strip()
-              print(name)
-          except Exception:
-              print("")
+              clean_unauthenticated_checks = 0
+              for attempt in range(1, 4):
+                  try:
+                      response = session.get(f"{BASE_URL}/api/fr/user", timeout=DEFAULT_TIMEOUT_SECONDS)
+                      response.raise_for_status()
+                      data = response.json()
+                  except (requests.RequestException, ValueError):
+                      print(f"CROUS authentication probe {attempt}/3 was inconclusive.")
+                  else:
+                      identity = data.get("identity") if isinstance(data, dict) else None
+                      if isinstance(identity, dict) and identity.get("firstName"):
+                          first_name = str(identity.get("firstName", "")).strip()
+                          last_name = str(identity.get("lastName", "")).strip()
+                          result = {
+                              "status": "authenticated",
+                              "user": f"{first_name} {last_name}".strip(),
+                          }
+                          break
+                      clean_unauthenticated_checks += 1
+                      print(f"CROUS authentication probe {attempt}/3 returned no authenticated identity.")
+
+                  if attempt < 3:
+                      time.sleep(2)
+
+              if result["status"] != "authenticated":
+                  result["status"] = (
+                      "unauthenticated"
+                      if clean_unauthenticated_checks == 3
+                      else "unknown"
+                  )
+
+          print(f"CROUS PRECHECK STATUS: {result['status'].upper()}")
+          if result["user"]:
+              print(f"CROUS PRECHECK USER: {result['user']}")
+          Path(".crous_auth_probe.json").write_text(json.dumps(result), encoding="utf-8")
+          PY
+
+          AUTH_STATUS=$(python - <<'PY'
+          import json
+          print(json.load(open(".crous_auth_probe.json", encoding="utf-8"))["status"])
+          PY
+          )
+          AUTH_USER=$(python - <<'PY'
+          import json
+          print(json.load(open(".crous_auth_probe.json", encoding="utf-8")).get("user", ""))
           PY
           )
 
-          python crous_notifier.py | while IFS= read -r line; do
+          AUTH_STATE_PATH="data/authentication_state.json"
+          AUTH_STATE_BACKUP=".authentication_state.before"
+          if [[ -f "$AUTH_STATE_PATH" ]]; then
+            cp "$AUTH_STATE_PATH" "$AUTH_STATE_BACKUP"
+          else
+            rm -f "$AUTH_STATE_BACKUP"
+          fi
+
+          # If the robust precheck authenticated successfully, or if verification
+          # was technically inconclusive, temporarily suppress the notifier's
+          # single-shot expiry email. This prevents a one-off race/network blip
+          # inside the notifier from producing a false "cookies expired" message.
+          if [[ "$AUTH_STATUS" != "unauthenticated" ]]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("data/authentication_state.json")
+          path.parent.mkdir(parents=True, exist_ok=True)
+          try:
+              state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+          except (OSError, json.JSONDecodeError):
+              state = {}
+          if not isinstance(state, dict):
+              state = {}
+          state["expired_notified"] = True
+          path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+          PY
+          fi
+
+          set +e
+          python crous_notifier.py > .crous_notifier_output 2>&1
+          NOTIFIER_EXIT=$?
+          set -e
+
+          while IFS= read -r line; do
             if [[ "$line" == "CROUS SCRAPING STATUS: AUTHENTICATED" && -n "$AUTH_USER" ]]; then
               echo "$line — $AUTH_USER"
             else
               echo "$line"
             fi
-          done
+          done < .crous_notifier_output
 
-          rm -f cookies.json
+          # Restore a clean auth-alert state after a robust authenticated precheck.
+          # For an inconclusive precheck, restore exactly what existed before this
+          # run. A confirmed unauthenticated result is left for the notifier to
+          # handle normally, including the one-time genuine-expiry email.
+          if [[ "$AUTH_STATUS" == "authenticated" ]]; then
+            python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("data/authentication_state.json")
+          path.parent.mkdir(parents=True, exist_ok=True)
+          try:
+              state = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+          except (OSError, json.JSONDecodeError):
+              state = {}
+          if not isinstance(state, dict):
+              state = {}
+          state["expired_notified"] = False
+          path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+          PY
+          elif [[ "$AUTH_STATUS" == "unknown" ]]; then
+            if [[ -f "$AUTH_STATE_BACKUP" ]]; then
+              cp "$AUTH_STATE_BACKUP" "$AUTH_STATE_PATH"
+            else
+              rm -f "$AUTH_STATE_PATH"
+            fi
+          fi
+
+          rm -f cookies.json .crous_cookie_source_status .crous_auth_probe.json .crous_notifier_output "$AUTH_STATE_BACKUP"
+          exit "$NOTIFIER_EXIT"
 
       - name: Commit and push state files
         run: |

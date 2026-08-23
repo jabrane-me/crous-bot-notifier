@@ -46,7 +46,9 @@ jobs:
           set -euo pipefail
 
           # Fetch the dashboard cookie export. A transient dashboard/API failure must
-          # not be confused with genuinely empty/expired CROUS cookies.
+          # not be confused with genuinely empty/expired CROUS cookies. Three failed
+          # attempts are treated as a persistent cookie-source outage and get their
+          # own one-time alert, distinct from a genuine CROUS authentication expiry.
           python - <<'PY'
           import json
           import os
@@ -55,12 +57,14 @@ jobs:
 
           import requests
 
+          from crous_notifier import TO_EMAIL, send_email
+
           api_url = os.environ.get("CROUS_COOKIES_API_URL", "").strip()
           payload = {"cookies": []}
           source_status = "unavailable"
 
           if not api_url:
-              print("CROUS cookie API is not configured; public access will be used without an expiry alert.")
+              print("CROUS cookie API is not configured; public access will be used.")
           else:
               for attempt in range(1, 4):
                   try:
@@ -84,7 +88,43 @@ jobs:
                           print(f"Dashboard cookie API check {attempt}/3 failed; retrying.")
                           time.sleep(2)
                       else:
-                          print("Dashboard cookie API could not be reached reliably after 3 attempts; using public access without an expiry alert.")
+                          print("Dashboard cookie API could not be reached reliably after 3 attempts; using public access.")
+
+          state_path = Path("data/authentication_state.json")
+          state_path.parent.mkdir(parents=True, exist_ok=True)
+          try:
+              state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
+          except (OSError, json.JSONDecodeError):
+              state = {}
+          if not isinstance(state, dict):
+              state = {}
+
+          source_alert_sent = bool(state.get("source_unavailable_notified", False))
+
+          if source_status == "unavailable":
+              if source_alert_sent:
+                  print("CROUS cookie API outage already notified; suppressing duplicate alert.")
+              else:
+                  body = (
+                      "<html><body style='font-family:Arial,sans-serif;color:#222'>"
+                      "<h2>CROUS cookie API unavailable</h2>"
+                      "<p>The notifier could not retrieve the saved CROUS cookies from the configured cookie API after 3 attempts.</p>"
+                      "<p>This can mean the private API path is incorrect, the cookie service is unavailable, or the endpoint returned an invalid response.</p>"
+                      "<p>The notifier has continued using public CROUS access for this run.</p>"
+                      "</body></html>"
+                  )
+                  try:
+                      sent = send_email(TO_EMAIL or "", "U | CROUS cookie API unavailable", body)
+                  except Exception as exc:
+                      print(f"Failed to send cookie-API-unavailable email: {exc}")
+                      sent = False
+                  if sent:
+                      state["source_unavailable_notified"] = True
+                      state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+          elif source_alert_sent:
+              state["source_unavailable_notified"] = False
+              state_path.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
+              print("CROUS cookie API recovered; source alert latch reset.")
 
           Path("cookies.json").write_text(json.dumps(payload), encoding="utf-8")
           Path(".crous_cookie_source_status").write_text(source_status, encoding="utf-8")

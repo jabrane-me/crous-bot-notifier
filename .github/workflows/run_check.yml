@@ -49,10 +49,6 @@ jobs:
           # not be confused with genuinely empty/expired CROUS cookies. Three failed
           # attempts are treated as a persistent cookie-source outage and get their
           # own one-time alert, distinct from a genuine CROUS authentication expiry.
-          #
-          # Only PHPSESSID is passed to the notifier. The session diagnostic proved
-          # that PHPSESSID alone preserves CROUS authentication, while the other
-          # saved cookies are not required and can carry disposable site/session state.
           python - <<'PY'
           import json
           import os
@@ -83,19 +79,9 @@ jobs:
                       if not isinstance(cookies, list):
                           raise ValueError("invalid cookie collection")
 
-                      auth_cookies = [
-                          cookie
-                          for cookie in cookies
-                          if isinstance(cookie, dict) and cookie.get("name") == "PHPSESSID"
-                      ]
-                      payload = {"cookies": auth_cookies}
+                      payload = {"cookies": cookies}
                       source_status = "ok" if cookies else "empty"
-                      print(
-                          f"Loaded {len(cookies)} CROUS cookie(s) from the dashboard API; "
-                          f"using {len(auth_cookies)} authentication cookie(s) (PHPSESSID only)."
-                      )
-                      if cookies and not auth_cookies:
-                          print("CROUS cookie export does not contain PHPSESSID; authentication will be checked normally.")
+                      print(f"Loaded {len(cookies)} CROUS cookie(s) from the dashboard API.")
                       break
                   except (requests.RequestException, ValueError):
                       if attempt < 3:
@@ -257,7 +243,7 @@ jobs:
           fi
 
           set +e
-          python crous_notifier.py > .crous_notifier_output 2>&1
+          python crous_runner.py > .crous_notifier_output 2>&1
           NOTIFIER_EXIT=$?
           set -e
 

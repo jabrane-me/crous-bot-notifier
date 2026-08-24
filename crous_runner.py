@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from types import MethodType
 from urllib.parse import urlparse
 
@@ -103,6 +102,17 @@ def main() -> None:
                 "CROUS 500 FALLBACK AUTH: "
                 + ("AUTHENTICATED" if fallback_authenticated else "UNAUTHENTICATED")
             )
+
+            if authenticated and not fallback_authenticated:
+                print(
+                    "CROUS 500 FALLBACK could not preserve the authenticated session; "
+                    "stopping housing checks for this run and preserving existing snapshots."
+                )
+                active_session = fallback_session
+                fallback_active = True
+                stop_checks = True
+                break
+
             arm_search_500_abort(fallback_session)
             active_session = fallback_session
             fallback_active = True
@@ -124,7 +134,7 @@ def main() -> None:
     if fallback_active:
         print("CROUS 500 FALLBACK: ACTIVE")
     if stop_checks:
-        print("CROUS HOUSING CHECKS: STOPPED AFTER FALLBACK HTTP 500")
+        print("CROUS HOUSING CHECKS: STOPPED SAFELY")
     print("=" * 72)
 
 

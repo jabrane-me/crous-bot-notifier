@@ -243,7 +243,7 @@ jobs:
           fi
 
           set +e
-          python crous_notifier.py > .crous_notifier_output 2>&1
+          python crous_runner.py > .crous_notifier_output 2>&1
           NOTIFIER_EXIT=$?
           set -e
 

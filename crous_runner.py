@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import contextlib
 import json
+from pathlib import Path
 from types import MethodType
 from urllib.parse import urlparse
 
@@ -57,8 +59,31 @@ def create_phpsessid_only_session() -> requests.Session:
     return session
 
 
+def capture_one_off_card_diagnostic() -> None:
+    output_path = Path("data/crous_card_matrix.txt")
+    if output_path.exists():
+        return
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        from diagnose_crous_cards import main as diagnostic_main
+
+        with output_path.open("w", encoding="utf-8") as handle, contextlib.redirect_stdout(handle):
+            diagnostic_main()
+        print(f"CROUS card diagnostic captured in {output_path}.")
+    except Exception as exc:
+        output_path.write_text(
+            f"DIAGNOSTIC FAILED: {type(exc).__name__}: {exc}\n",
+            encoding="utf-8",
+        )
+        print(f"CROUS card diagnostic failed: {type(exc).__name__}: {exc}")
+
+
 def main() -> None:
     notifier.AUTH_EMAIL_PREFIX = "U"
+
+    # Temporary one-shot diagnostic. It writes only non-sensitive card/status data
+    # under data/, so the existing workflow state commit captures the result.
+    capture_one_off_card_diagnostic()
 
     session = notifier.create_crous_session()
     authenticated = notifier.is_crous_authenticated(session)

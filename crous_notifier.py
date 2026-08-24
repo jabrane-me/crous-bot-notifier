@@ -46,6 +46,7 @@ DEFAULT_CONFIG_FILE = "crous_targets.json"
 COOKIES_FILE = Path("cookies.json")
 AUTH_STATE_FILE = Path("data/authentication_state.json")
 AUTH_EMAIL_PREFIX = "U"
+FALLBACK_COOKIE_NAMES = {"PHPSESSID", "tool.47.hasUserReadRules"}
 
 CSV_HEADERS = [
     "residence_id", "name", "housing_type", "price_text", "price_min_eur",
@@ -83,6 +84,12 @@ class RecipientTarget:
     send_daily_report: bool = False
     daily_report_time_window: dict[str, str] = field(default_factory=lambda: dict(DEFAULT_DAILY_REPORT_TIME_WINDOW))
     immediate_alert_filter: ImmediateAlertFilter | None = None
+
+
+class CrousSearch500(RuntimeError):
+    def __init__(self, url: str) -> None:
+        super().__init__(url)
+        self.url = url
 
 
 def slugify(value: str) -> str:
@@ -360,7 +367,7 @@ def set_query_param(url: str, key: str, value: str) -> str:
     return urlunparse(parsed._replace(query=urlencode(query)))
 
 
-def create_crous_session() -> requests.Session:
+def create_crous_session(cookie_names: set[str] | None = None) -> requests.Session:
     session = requests.Session()
     session.headers.update(HEADERS)
     if not COOKIES_FILE.exists():
@@ -381,8 +388,11 @@ def create_crous_session() -> requests.Session:
     for cookie in cookies:
         if not isinstance(cookie, dict) or not cookie.get("name"):
             continue
+        name = str(cookie["name"])
+        if cookie_names is not None and name not in cookie_names:
+            continue
         session.cookies.set(
-            str(cookie["name"]),
+            name,
             str(cookie.get("value", "")),
             domain=str(cookie.get("domain") or urlparse(BASE_URL).hostname),
             path=str(cookie.get("path") or "/"),
@@ -492,12 +502,18 @@ def card_to_residence(card, source_url: str, timestamp: str) -> dict[str, str] |
     }
 
 
+def fetch_search_page(session: requests.Session, url: str) -> BeautifulSoup:
+    response = session.get(url, timeout=DEFAULT_TIMEOUT_SECONDS)
+    if response.status_code == 500 and "/tools/47/search" in url:
+        raise CrousSearch500(url)
+    response.raise_for_status()
+    return BeautifulSoup(response.content, "html.parser")
+
+
 def scrape_crous_page(url: str, timestamp: str, session: requests.Session) -> list[dict[str, str]] | None:
     residences: list[dict[str, str]] = []
     try:
-        response = session.get(url, timeout=DEFAULT_TIMEOUT_SECONDS)
-        response.raise_for_status()
-        soup = BeautifulSoup(response.content, "html.parser")
+        soup = fetch_search_page(session, url)
 
         total_pages = 1
         header = soup.find("h2", class_="SearchResults-desktop")
@@ -507,11 +523,7 @@ def scrape_crous_page(url: str, timestamp: str, session: requests.Session) -> li
         print(f"{url}: scraping {total_pages} page(s)")
         for page_num in range(1, total_pages + 1):
             page_url = set_query_param(url, "page", str(page_num)) if page_num > 1 else url
-            page_soup = soup
-            if page_num > 1:
-                page_response = session.get(page_url, timeout=DEFAULT_TIMEOUT_SECONDS)
-                page_response.raise_for_status()
-                page_soup = BeautifulSoup(page_response.content, "html.parser")
+            page_soup = fetch_search_page(session, page_url) if page_num > 1 else soup
             for card in page_soup.select(".fr-card"):
                 if residence := card_to_residence(card, url, timestamp):
                     residences.append(residence)
@@ -953,21 +965,78 @@ def main() -> None:
     AUTH_EMAIL_PREFIX = "A" if authenticated else "U"
 
     if not authenticated:
+        session.close()
         session = requests.Session()
         session.headers.update(HEADERS)
 
     handle_authentication_transition(authenticated)
 
+    active_session = session
+    fallback_active = False
+    stop_checks = False
+
     for target in load_targets():
         if not target.email:
             print(f"Skipping {target.name}: no recipient email configured.")
             continue
-        process_target(target, session)
 
-    status = "AUTHENTICATED" if authenticated and is_crous_authenticated(session) else "PUBLIC"
+        try:
+            process_target(target, active_session)
+            continue
+        except CrousSearch500 as exc:
+            if fallback_active:
+                print(
+                    f"CROUS 500 FALLBACK also returned HTTP 500 for {exc.url}; "
+                    "stopping housing checks for this run and preserving existing snapshots."
+                )
+                stop_checks = True
+                break
+
+            print(f"CROUS search returned HTTP 500 for {exc.url}.")
+            print(
+                "CROUS 500 FALLBACK: switching to a fresh session with "
+                "PHPSESSID + tool.47.hasUserReadRules."
+            )
+
+        active_session.close()
+        fallback_session = create_crous_session(FALLBACK_COOKIE_NAMES)
+        fallback_authenticated = is_crous_authenticated(fallback_session)
+        print(
+            "CROUS 500 FALLBACK AUTH: "
+            + ("AUTHENTICATED" if fallback_authenticated else "UNAUTHENTICATED")
+        )
+
+        if authenticated and not fallback_authenticated:
+            print(
+                "CROUS 500 FALLBACK could not preserve authentication; "
+                "stopping housing checks for this run and preserving existing snapshots."
+            )
+            active_session = fallback_session
+            fallback_active = True
+            stop_checks = True
+            break
+
+        active_session = fallback_session
+        fallback_active = True
+        try:
+            process_target(target, active_session)
+        except CrousSearch500 as fallback_exc:
+            print(
+                f"CROUS 500 FALLBACK also returned HTTP 500 for {fallback_exc.url}; "
+                "stopping housing checks for this run and preserving existing snapshots."
+            )
+            stop_checks = True
+            break
+
+    status = "AUTHENTICATED" if authenticated and is_crous_authenticated(active_session) else "PUBLIC"
     print("\n" + "=" * 72)
     print(f"CROUS SCRAPING STATUS: {status}")
+    if fallback_active:
+        print("CROUS 500 FALLBACK: ACTIVE")
+    if stop_checks:
+        print("CROUS HOUSING CHECKS: STOPPED SAFELY")
     print("=" * 72)
+    active_session.close()
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@
     "name": "Bordeaux",
     "email_env": "TO_EMAIL",
     "data_dir": "data/bordeaux",
-    "cities": ["Bordeaux", "Pessac", "Talence", "Gradignan","Mérignac"],
+    "cities": ["Bordeaux", "Pessac", "Talence", "Gradignan", "Mérignac"],
     "urls": [
       "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=-0.7569779_44.8627846_-0.6069396_44.7998378&locationName=Mérignac+%2833700%29",
       "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=-0.7587897_44.8225797_-0.6029478_44.749435&locationName=Pessac+%2833600%29",
@@ -28,6 +28,25 @@
       "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=7.7011138_48.635168_7.803662_48.5981431&locationName=Schiltigheim+%2867300%29",
       "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=7.6936786_48.5513899_7.7668133_48.4931752&locationName=Illkirch-Graffenstaden+%2867400%29",
       "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=7.6881371_48.6461896_7.8360646_48.491861&locationName=Strasbourg"
+    ],
+    "send_immediate_alert": true,
+    "send_daily_report": false,
+    "daily_report_time_window": {
+      "start": "23:30",
+      "end": "00:00"
+    }
+  },
+  {
+    "name": "Mulhouse",
+    "email_env": "MULHOUSE_TO_EMAIL",
+    "data_dir": "data/mulhouse",
+    "cities": ["Mulhouse", "Illzach", "Riedisheim", "Kingersheim", "Wittenheim"],
+    "urls": [
+      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=7.282494_47.7833721_7.3686272_47.7218791&locationName=Mulhouse",
+      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=7.339033_47.7988417_7.3935737_47.758519&locationName=Illzach+%2868110%29",
+      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=7.3444983_47.7619897_7.3826607_47.7166665&locationName=Riedisheim+%2868400%29",
+      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=7.2748485_47.8009986_7.3486234_47.7766686&locationName=Kingersheim+%2868260%29",
+      "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=7.2618928_47.8313997_7.3549239_47.7913455&locationName=Wittenheim+%2868270%29"
     ],
     "send_immediate_alert": true,
     "send_daily_report": false,

@@ -49,7 +49,7 @@
       "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=7.2618928_47.8313997_7.3549239_47.7913455&locationName=Wittenheim+%2868270%29"
     ],
     "send_immediate_alert": true,
-    "send_daily_report": false,
+    "send_daily_report": true,
     "daily_report_time_window": {
       "start": "23:30",
       "end": "00:00"

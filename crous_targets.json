@@ -12,8 +12,8 @@
       "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=-0.6471483_44.7938687_-0.5854508_44.7423986&locationName=Gradignan+%2833170%29",
       "https://trouverunlogement.lescrous.fr/tools/47/search?bounds=-0.5413769_44.8891965_-0.493982_44.8605289&locationName=Lormont+%2833310%29"
     ],
-    "send_immediate_alert": true,
-    "send_daily_report": true,
+    "send_immediate_alert": false,
+    "send_daily_report": false,
     "daily_report_time_window": {
       "start": "23:30",
       "end": "00:00"

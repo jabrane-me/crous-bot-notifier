@@ -1,3 +1,4 @@
 {
-  "expired_notified": true
+  "expired_notified": true,
+  "source_unavailable_notified": true
 }
